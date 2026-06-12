@@ -276,7 +276,7 @@ else:
         with tab_add_manual:
             st.markdown("### ➕ إضافة معدة جديدة")
             
-            with st.form("add_inventory_form", clear_on_submit=True):
+            with st.form("add_inventory_form"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -512,7 +512,7 @@ else:
         with tab_add_manual:
             st.markdown("### ➕ إضافة معدة جديدة")
             
-            with st.form("add_inventory_form", clear_on_submit=True):
+            with st.form("add_inventory_form"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
