@@ -190,6 +190,78 @@ else:
             returned_loans = sum(1 for l in loans.values() if l.get('status') == 'مرجعة')
             st.metric("إعارات نشطة", active_loans)
             st.metric("إعارات مرجعة", returned_loans)
+        
+        st.divider()
+        
+        # ============ جدول المعدات الشامل ============
+        st.markdown("## 📋 جدول جميع المعدات")
+        
+        if inventory:
+            # فلتر
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                search_item = st.text_input("🔍 ابحث بالاسم أو المعرف...")
+            with col2:
+                filter_status = st.selectbox("تصفية بالحالة", ["الكل", "متوفر", "معار", "صيانة", "خارج الخدمة"])
+            with col3:
+                filter_category = st.selectbox("تصفية بالتصنيف", ["الكل"] + load_categories())
+            
+            # إعداد البيانات
+            table_data = []
+            for item_id, item in inventory.items():
+                # تطبيق الفلاتر
+                if search_item and search_item.lower() not in item_id.lower() and search_item.lower() not in item['name'].lower():
+                    continue
+                if filter_status != "الكل" and item['status'] != filter_status:
+                    continue
+                if filter_category != "الكل" and item.get('category') != filter_category:
+                    continue
+                
+                # أيقونة الحالة
+                status_emoji = "🟢" if item['status'] == 'متوفر' else "🟡" if item['status'] == 'معار' else "🔴"
+                
+                table_data.append({
+                    "🆔 المعرف": item_id,
+                    "📦 الاسم": item['name'],
+                    "🏷️ التصنيف": item.get('category', '-'),
+                    "📍 الموقع": item.get('location', '-'),
+                    "📊 الحالة": f"{status_emoji} {item['status']}",
+                    "📅 تاريخ الإضافة": item.get('date_added', '-'),
+                    "📝 ملاحظات": item.get('notes', '-')
+                })
+            
+            if table_data:
+                df = pd.DataFrame(table_data)
+                
+                # عرض الجدول
+                st.dataframe(
+                    df,
+                    use_container_width=True,
+                    height=400,
+                    hide_index=True,
+                    column_config={
+                        "🆔 المعرف": st.column_config.TextColumn(width="small"),
+                        "📦 الاسم": st.column_config.TextColumn(width="medium"),
+                        "📊 الحالة": st.column_config.TextColumn(width="small"),
+                    }
+                )
+                
+                # إحصائيات الفلتر
+                st.caption(f"✅ عدد المعدات المعروضة: **{len(table_data)}** من **{len(inventory)}**")
+                
+                # تحميل الجدول
+                csv = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 تحميل الجدول (CSV)",
+                    data=csv,
+                    file_name=f"equipment_list_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+            else:
+                st.info("❌ لم يتم العثور على معدات تطابق الفلاتر")
+        else:
+            st.info("📭 لا توجد معدات مسجلة")
 
     # ============ TAB 2: إدارة المخزن ============
     with tab2:
@@ -679,4 +751,4 @@ else:
             st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
 
 st.markdown("---")
-st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 |  by zero aapp  ✨</p>", unsafe_allow_html=True)
