@@ -276,7 +276,7 @@ else:
         with tab_add_manual:
             st.markdown("### ➕ إضافة معدة جديدة")
             
-            with st.form("add_excel_inventory_form"):
+            with st.form("add_manual_form"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -337,7 +337,7 @@ else:
                 csv_template = template_df.to_csv(index=False, encoding='utf-8-sig')
                 
                 st.download_button(
-                    label="📥 تحميل قالب Excel", key="download_template_excel",
+                    label="📥 تحميل قالب Excel",
                     data=csv_template,
                     file_name="قالب_المعدات.csv",
                     mime="text/csv",
@@ -456,7 +456,7 @@ else:
                     # عرض البيانات الحالية
                     current_data = inventory[selected_item]
                     
-                    with st.form("edit_manual_inventory_form"):
+                    with st.form("edit_manual_form"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
@@ -573,7 +573,7 @@ else:
                 csv_template = template_df.to_csv(index=False, encoding='utf-8-sig')
                 
                 st.download_button(
-                    label="📥 تحميل قالب Excel", key="download_excel_template",
+                    label="📥 تحميل قالب Excel",
                     data=csv_template,
                     file_name="قالب_المعدات.csv",
                     mime="text/csv",
@@ -584,7 +584,7 @@ else:
             
             with col2:
                 st.markdown("#### 📤 2. أرفع الملف المعدّل")
-                uploaded_file = st.file_uploader("اختر ملف CSV أو Excel", type=['xlsx', 'xls', 'csv'], key="inventory_upload_excel")
+                uploaded_file = st.file_uploader("اختر ملف CSV أو Excel", type=['xlsx', 'xls', 'csv'], key="inventory_upload")
             
             if uploaded_file:
                 try:
@@ -1018,7 +1018,7 @@ else:
                 # تحميل التقرير
                 csv_data = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button(
-                    label="📥 تحميل التقرير (CSV)", key="download_inventory_report",
+                    label="📥 تحميل التقرير (CSV)",
                     data=csv_data,
                     file_name=f"inventory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv"
@@ -1080,7 +1080,7 @@ else:
                 
                 csv_data = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button(
-                    label="📥 تحميل التقرير (CSV)", key="download_loans_report",
+                    label="📥 تحميل التقرير (CSV)",
                     data=csv_data,
                     file_name=f"loans_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv"
