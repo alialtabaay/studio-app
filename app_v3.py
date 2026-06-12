@@ -319,24 +319,56 @@ else:
             st.markdown("### 📊 رفع معدات من ملف Excel")
             st.info("📋 يجب أن يحتوي الملف على الأعمدة التالية: المعرف، الاسم، التصنيف، الحالة، الموقع، ملاحظات")
             
-            uploaded_file = st.file_uploader("اختر ملف Excel", type=['xlsx', 'xls'], key="inventory_upload")
+            # زر تحميل القالب
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 📥 1. حمّل القالب أولاً")
+                template_data = {
+                    "المعرف": ["CAM-001", "LEN-001", "LIT-001"],
+                    "الاسم": ["كاميرا Sony", "عدسة 50mm", "إضاءة LED"],
+                    "التصنيف": ["كاميرات", "عدسات", "إضاءة"],
+                    "الحالة": ["متوفر", "متوفر", "معار"],
+                    "الموقع": ["الرف الأول", "الرف الثاني", "الرف الثالث"],
+                    "ملاحظات": ["جديدة", "ممتازة", "قيد الاستخدام"]
+                }
+                
+                template_df = pd.DataFrame(template_data)
+                csv_template = template_df.to_csv(index=False, encoding='utf-8-sig')
+                
+                st.download_button(
+                    label="📥 تحميل قالب Excel",
+                    data=csv_template,
+                    file_name="قالب_المعدات.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+                
+                st.caption("💡 احفظ هذا الملف وأضف البيانات فيه")
+            
+            with col2:
+                st.markdown("#### 📤 2. أرفع الملف المعدّل")
+                uploaded_file = st.file_uploader("اختر ملف Excel أو CSV", type=['xlsx', 'xls', 'csv'], key="inventory_upload")
             
             if uploaded_file:
                 try:
                     # قراءة الملف
-                    df = pd.read_excel(uploaded_file)
+                    if uploaded_file.name.endswith('.csv'):
+                        df = pd.read_csv(uploaded_file)
+                    else:
+                        df = pd.read_excel(uploaded_file)
                     
                     st.markdown("### 📊 معاينة البيانات")
                     st.dataframe(df, use_container_width=True)
                     
-                    # التحقق من الأعمدة
-                    required_columns = ['المعرف', 'الاسم', 'التصنيف', 'الحالة', 'الموقع', 'ملاحظات']
                     df_columns = df.columns.tolist()
                     
-                    # محاولة مطابقة الأعمدة (قد تكون بأسماء مختلفة)
+                    # محاولة مطابقة الأعمدة تلقائياً
                     column_mapping = {}
                     st.markdown("### 🔄 مطابقة الأعمدة")
                     col1, col2, col3 = st.columns(3)
+                    
+                    required_columns = ['المعرف', 'الاسم', 'التصنيف', 'الحالة', 'الموقع', 'ملاحظات']
                     
                     with col1:
                         st.write("**أعمدة الملف:**")
@@ -367,7 +399,7 @@ else:
                                 item_id = str(row[column_mapping['المعرف']]).strip()
                                 item_name = str(row[column_mapping['الاسم']]).strip()
                                 
-                                if not item_id or not item_name:
+                                if not item_id or not item_name or item_id == 'nan':
                                     errors += 1
                                     continue
                                 
@@ -385,12 +417,12 @@ else:
                                 count += 1
                             except Exception as e:
                                 errors += 1
-                                st.write(f"❌ خطأ في الصف {idx + 1}: {str(e)}")
                         
                         save_inventory(inventory)
                         st.success(f"✅ تم استيراد **{count}** معدة بنجاح!")
                         if errors > 0:
-                            st.warning(f"⚠️ حدثت {errors} أخطاء أثناء الاستيراد")
+                            st.warning(f"⚠️ تم تخطي **{errors}** صفوف (فارغة أو بدون معرف)")
+                        st.rerun()
                 
                 except Exception as e:
                     st.error(f"❌ خطأ في قراءة الملف: {str(e)}")
