@@ -271,50 +271,44 @@ else:
         
         st.markdown("### ➕ إضافة معدة جديدة")
         
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
-            item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
-            item_category = st.selectbox("🏷️ التصنيف", categories)
-        
-        with col2:
-            item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
-            item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
-            item_notes = st.text_area("📝 ملاحظات", height=100)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            save_btn = st.button("💾 حفظ المعدة", use_container_width=True, type="primary")
-        
-        with col2:
-            clear_btn = st.button("🔄 مسح الحقول", use_container_width=True)
-        
-        if save_btn:
-            if not item_id:
-                st.error("❌ يجب إدخال معرف المعدة!")
-            elif not item_name:
-                st.error("❌ يجب إدخال اسم المعدة!")
-            elif item_id in inventory:
-                st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
-            else:
-                inventory[item_id] = {
-                    "name": item_name,
-                    "category": item_category,
-                    "status": item_status,
-                    "location": item_location,
-                    "notes": item_notes,
-                    "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
-                }
-                save_inventory(inventory)
-                st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}** بنجاح!")
-                st.balloons()
-                st.rerun()
-        
-        if clear_btn:
-            st.info("🔄 تم مسح جميع الحقول")
-            st.rerun()
+        with st.form("add_item_form"):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
+                item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
+                item_category = st.selectbox("🏷️ التصنيف", categories)
+            
+            with col2:
+                item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
+                item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
+                item_notes = st.text_area("📝 ملاحظات", height=100)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                submit_btn = st.form_submit_button("💾 حفظ المعدة", use_container_width=True, type="primary")
+            with col2:
+                reset_btn = st.form_submit_button("🔄 مسح الحقول", use_container_width=True)
+            
+            if submit_btn:
+                if not item_id:
+                    st.error("❌ يجب إدخال معرف المعدة!")
+                elif not item_name:
+                    st.error("❌ يجب إدخال اسم المعدة!")
+                elif item_id in inventory:
+                    st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
+                else:
+                    inventory[item_id] = {
+                        "name": item_name,
+                        "category": item_category,
+                        "status": item_status,
+                        "location": item_location,
+                        "notes": item_notes,
+                        "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    }
+                    save_inventory(inventory)
+                    st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}** بنجاح!")
+                    st.balloons()
         
         st.divider()
         
