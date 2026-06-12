@@ -435,40 +435,155 @@ else:
         inventory = load_inventory()
         loans = load_loans()
         
-        col1, col2 = st.columns(2)
+        report_type = st.radio("نوع التقرير", ["📊 الإحصائيات", "📋 جرد المعدات", "📦 الإعارات"])
         
-        with col1:
-            st.markdown("### توزيع المعدات حسب الحالة")
-            statuses = {}
-            for item in inventory.values():
-                status = item.get('status')
-                statuses[status] = statuses.get(status, 0) + 1
+        if report_type == "📊 الإحصائيات":
+            col1, col2 = st.columns(2)
             
-            if statuses:
-                status_df = pd.DataFrame(list(statuses.items()), columns=['الحالة', 'العدد'])
-                st.bar_chart(status_df.set_index('الحالة'))
-        
-        with col2:
-            st.markdown("### توزيع حسب التصنيف")
-            categories_count = {}
-            for item in inventory.values():
-                cat = item.get('category', 'بدون تصنيف')
-                categories_count[cat] = categories_count.get(cat, 0) + 1
+            with col1:
+                st.markdown("### توزيع المعدات حسب الحالة")
+                statuses = {}
+                for item in inventory.values():
+                    status = item.get('status')
+                    statuses[status] = statuses.get(status, 0) + 1
+                
+                if statuses:
+                    status_df = pd.DataFrame(list(statuses.items()), columns=['الحالة', 'العدد'])
+                    st.bar_chart(status_df.set_index('الحالة'))
             
-            if categories_count:
-                cat_df = pd.DataFrame(list(categories_count.items()), columns=['التصنيف', 'العدد'])
-                st.bar_chart(cat_df.set_index('التصنيف'))
+            with col2:
+                st.markdown("### توزيع حسب التصنيف")
+                categories_count = {}
+                for item in inventory.values():
+                    cat = item.get('category', 'بدون تصنيف')
+                    categories_count[cat] = categories_count.get(cat, 0) + 1
+                
+                if categories_count:
+                    cat_df = pd.DataFrame(list(categories_count.items()), columns=['التصنيف', 'العدد'])
+                    st.bar_chart(cat_df.set_index('التصنيف'))
+            
+            st.divider()
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("إجمالي المعدات", len(inventory))
+            with col2:
+                st.metric("إجمالي الإعارات", len(loans))
+            with col3:
+                active = sum(1 for l in loans.values() if l.get('status') == 'نشطة')
+                st.metric("إعارات نشطة", active)
         
-        st.divider()
+        elif report_type == "📋 جرد المعدات":
+            st.markdown("## 📋 تقرير جرد المعدات الشامل")
+            st.caption(f"📅 تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+            
+            if inventory:
+                # ملخص
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("إجمالي المعدات", len(inventory))
+                with col2:
+                    available = sum(1 for i in inventory.values() if i.get('status') == 'متوفر')
+                    st.metric("متوفرة", available)
+                with col3:
+                    loaned = sum(1 for i in inventory.values() if i.get('status') == 'معار')
+                    st.metric("معارة", loaned)
+                with col4:
+                    maintenance = sum(1 for i in inventory.values() if i.get('status') == 'صيانة')
+                    st.metric("صيانة", maintenance)
+                
+                st.divider()
+                
+                # جدول تفصيلي
+                st.markdown("### 📊 تفاصيل المعدات")
+                
+                report_data = []
+                for item_id, item in inventory.items():
+                    report_data.append({
+                        "المعرف": item_id,
+                        "الاسم": item['name'],
+                        "التصنيف": item.get('category', '-'),
+                        "الحالة": item['status'],
+                        "الموقع": item.get('location', '-'),
+                        "تاريخ الإضافة": item.get('date_added', '-'),
+                        "ملاحظات": item.get('notes', '-')
+                    })
+                
+                df = pd.DataFrame(report_data)
+                st.dataframe(df, use_container_width=True)
+                
+                # تحميل التقرير
+                csv_data = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 تحميل التقرير (CSV)",
+                    data=csv_data,
+                    file_name=f"inventory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+                
+                # التقسيم حسب الحالة
+                st.markdown("### 📌 التفصيل حسب الحالة")
+                
+                statuses = set(item['status'] for item in inventory.values())
+                for status in sorted(statuses):
+                    items_by_status = {k: v for k, v in inventory.items() if v['status'] == status}
+                    
+                    with st.expander(f"{status} ({len(items_by_status)})"):
+                        for item_id, item in items_by_status.items():
+                            st.write(f"**{item['name']}** ({item_id})")
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.caption(f"📂 التصنيف: {item.get('category')}")
+                                st.caption(f"📍 الموقع: {item.get('location')}")
+                            with col2:
+                                st.caption(f"📅 التاريخ: {item.get('date_added')}")
+                                if item.get('notes'):
+                                    st.caption(f"📝 ملاحظات: {item['notes']}")
+            else:
+                st.info("📭 لا توجد معدات لعرضها")
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("إجمالي المعدات", len(inventory))
-        with col2:
-            st.metric("إجمالي الإعارات", len(loans))
-        with col3:
-            active = sum(1 for l in loans.values() if l.get('status') == 'نشطة')
-            st.metric("إعارات نشطة", active)
+        elif report_type == "📦 الإعارات":
+            st.markdown("## 📦 تقرير الإعارات")
+            st.caption(f"📅 تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+            
+            if loans:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("إجمالي الإعارات", len(loans))
+                with col2:
+                    active = sum(1 for l in loans.values() if l.get('status') == 'نشطة')
+                    st.metric("نشطة", active)
+                with col3:
+                    returned = sum(1 for l in loans.values() if l.get('status') == 'مرجعة')
+                    st.metric("مرجعة", returned)
+                
+                st.divider()
+                
+                report_data = []
+                for loan_id, loan in loans.items():
+                    report_data.append({
+                        "رقم الإعارة": loan_id,
+                        "المعدة": loan.get('item_name', '-'),
+                        "العميل": loan['customer'],
+                        "الموظف": loan['employee'],
+                        "تاريخ السحب": loan['date'],
+                        "تاريخ الإرجاع": loan['return_date'],
+                        "الحالة": loan['status'],
+                        "ملاحظات": loan.get('notes', '-')
+                    })
+                
+                df = pd.DataFrame(report_data)
+                st.dataframe(df, use_container_width=True)
+                
+                csv_data = df.to_csv(index=False, encoding='utf-8-sig')
+                st.download_button(
+                    label="📥 تحميل التقرير (CSV)",
+                    data=csv_data,
+                    file_name=f"loans_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.info("📭 لا توجد إعارات لعرضها")
 
     # ============ TAB 6: الإعدادات ============
     with tab6:
