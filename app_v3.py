@@ -14,15 +14,6 @@ st.markdown("""
         font-family: 'Cairo', sans-serif;
         direction: rtl;
     }
-    .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-    }
-    .stat-number { font-size: 2rem; font-weight: 700; }
-    .stat-label { font-size: 0.9rem; opacity: 0.9; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -95,7 +86,7 @@ if not st.session_state["logged_in"]:
 
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        with st.form("login_form"):
+        with st.form("login_form_main"):
             st.markdown("<h3 style='text-align:center; font-family:Cairo,sans-serif; color:#1e3a8a;'>🔒 تسجيل الدخول</h3>", unsafe_allow_html=True)
             username = st.text_input("اسم المستخدم").strip()
             password = st.text_input("كلمة السر", type="password").strip()
@@ -122,8 +113,8 @@ else:
             st.session_state["role"] = ""
             st.rerun()
 
-    tabs = ["📊 لوحة التحكم", "📦 المخزن", "📋 الإعارات", "🔍 البحث", "📈 التقارير", "⚙️ الإعدادات"]
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(tabs)
+    tabs = ["📊 لوحة التحكم", "📦 المخزن", "📋 الإعارات", "⚙️ الإعدادات"]
+    tab1, tab2, tab3, tab4 = st.tabs(tabs)
 
     # ============ TAB 1: لوحة التحكم ============
     with tab1:
@@ -133,553 +124,6 @@ else:
         
         col1, col2, col3, col4 = st.columns(4)
         
-        with col1:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-number">{len(inventory)}</div>
-                <div class="stat-label">إجمالي المعدات</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            available = sum(1 for i in inventory.values() if i.get('status') == 'متوفر')
-            st.markdown(f"""
-            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                <div class="stat-number">{available}</div>
-                <div class="stat-label">متوفرة</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            loaned = sum(1 for i in inventory.values() if i.get('status') == 'معار')
-            st.markdown(f"""
-            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <div class="stat-number">{loaned}</div>
-                <div class="stat-label">معارة حالياً</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            maintenance = sum(1 for i in inventory.values() if i.get('status') == 'صيانة')
-            st.markdown(f"""
-            <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
-                <div class="stat-number">{maintenance}</div>
-                <div class="stat-label">قيد الصيانة</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.divider()
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("### 📅 الإعارات المنتهية صلاحيتها")
-            today = datetime.now().date()
-            overdue = {k: v for k, v in loans.items() 
-                      if v.get('status') == 'نشطة' and datetime.strptime(v.get('return_date', '2099-12-31'), '%Y-%m-%d').date() < today}
-            
-            if overdue:
-                for loan_id, data in overdue.items():
-                    st.warning(f"⚠️ **{loan_id}** - {data['customer']}")
-                    st.caption(f"كان يجب إرجاعها: {data.get('return_date')}")
-            else:
-                st.success("✅ لا توجد إعارات متأخرة")
-        
-        with col2:
-            st.markdown("### 🔔 ملخص سريع")
-            active_loans = sum(1 for l in loans.values() if l.get('status') == 'نشطة')
-            returned_loans = sum(1 for l in loans.values() if l.get('status') == 'مرجعة')
-            st.metric("إعارات نشطة", active_loans)
-            st.metric("إعارات مرجعة", returned_loans)
-        
-        st.divider()
-        
-        # ============ جدول المعدات الشامل ============
-        st.markdown("## 📋 جدول جميع المعدات")
-        
-        if inventory:
-            # فلتر
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                search_item = st.text_input("🔍 ابحث بالاسم أو المعرف...")
-            with col2:
-                filter_status = st.selectbox("تصفية بالحالة", ["الكل", "متوفر", "معار", "صيانة", "خارج الخدمة"])
-            with col3:
-                filter_category = st.selectbox("تصفية بالتصنيف", ["الكل"] + load_categories())
-            
-            # إعداد البيانات
-            table_data = []
-            for item_id, item in inventory.items():
-                # تطبيق الفلاتر
-                if search_item and search_item.lower() not in item_id.lower() and search_item.lower() not in item['name'].lower():
-                    continue
-                if filter_status != "الكل" and item['status'] != filter_status:
-                    continue
-                if filter_category != "الكل" and item.get('category') != filter_category:
-                    continue
-                
-                # أيقونة الحالة
-                status_emoji = "🟢" if item['status'] == 'متوفر' else "🟡" if item['status'] == 'معار' else "🔴"
-                
-                table_data.append({
-                    "🆔 المعرف": item_id,
-                    "📦 الاسم": item['name'],
-                    "🏷️ التصنيف": item.get('category', '-'),
-                    "📍 الموقع": item.get('location', '-'),
-                    "📊 الحالة": f"{status_emoji} {item['status']}",
-                    "📅 تاريخ الإضافة": item.get('date_added', '-'),
-                    "📝 ملاحظات": item.get('notes', '-')
-                })
-            
-            if table_data:
-                df = pd.DataFrame(table_data)
-                
-                # عرض الجدول
-                st.dataframe(
-                    df,
-                    use_container_width=True,
-                    height=400,
-                    hide_index=True,
-                    column_config={
-                        "🆔 المعرف": st.column_config.TextColumn(width="small"),
-                        "📦 الاسم": st.column_config.TextColumn(width="medium"),
-                        "📊 الحالة": st.column_config.TextColumn(width="small"),
-                    }
-                )
-                
-                # إحصائيات الفلتر
-                st.caption(f"✅ عدد المعدات المعروضة: **{len(table_data)}** من **{len(inventory)}**")
-                
-                # تحميل الجدول
-                csv = df.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    label="📥 تحميل الجدول (CSV)",
-                    data=csv,
-                    file_name=f"equipment_list_{datetime.now().strftime('%Y%m%d')}.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-            else:
-                st.info("❌ لم يتم العثور على معدات تطابق الفلاتر")
-        else:
-            st.info("📭 لا توجد معدات مسجلة")
-
-    # ============ TAB 2: إدارة المخزن ============
-    with tab2:
-        st.markdown("## 📦 إدارة المخزن")
-        inventory = load_inventory()
-        categories = load_categories()
-        
-        # تبويبات فرعية
-        tab_add_manual, tab_add_excel, tab_edit = st.tabs(["➕ إضافة يدوي", "📊 رفع من Excel", "✏️ تعديل المعدات"])
-        
-        # ============ TAB: إضافة يدوي ============
-        with tab_add_manual:
-            st.markdown("### ➕ إضافة معدة جديدة")
-            
-            with st.form("add_item_form"):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
-                    item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
-                    item_category = st.selectbox("🏷️ التصنيف", categories)
-                
-                with col2:
-                    item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
-                    item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
-                    item_notes = st.text_area("📝 ملاحظات", height=100)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    submit_btn = st.form_submit_button("💾 حفظ المعدة", use_container_width=True, type="primary")
-                with col2:
-                    reset_btn = st.form_submit_button("🔄 مسح الحقول", use_container_width=True)
-                
-                if submit_btn:
-                    if not item_id:
-                        st.error("❌ يجب إدخال معرف المعدة!")
-                    elif not item_name:
-                        st.error("❌ يجب إدخال اسم المعدة!")
-                    elif item_id in inventory:
-                        st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
-                    else:
-                        inventory[item_id] = {
-                            "name": item_name,
-                            "category": item_category,
-                            "status": item_status,
-                            "location": item_location,
-                            "notes": item_notes,
-                            "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
-                        }
-                        save_inventory(inventory)
-                        st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}** بنجاح!")
-        
-        # ============ TAB: رفع من Excel ============
-        with tab_add_excel:
-            st.markdown("### 📊 رفع معدات من ملف Excel")
-            st.info("📋 يجب أن يحتوي الملف على الأعمدة التالية: المعرف، الاسم، التصنيف، الحالة، الموقع، ملاحظات")
-            
-            # زر تحميل القالب
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("#### 📥 1. حمّل القالب أولاً")
-                template_data = {
-                    "المعرف": ["CAM-001", "LEN-001", "LIT-001"],
-                    "الاسم": ["كاميرا Sony", "عدسة 50mm", "إضاءة LED"],
-                    "التصنيف": ["كاميرات", "عدسات", "إضاءة"],
-                    "الحالة": ["متوفر", "متوفر", "معار"],
-                    "الموقع": ["الرف الأول", "الرف الثاني", "الرف الثالث"],
-                    "ملاحظات": ["جديدة", "ممتازة", "قيد الاستخدام"]
-                }
-                
-                template_df = pd.DataFrame(template_data)
-                csv_template = template_df.to_csv(index=False, encoding='utf-8-sig')
-                
-                st.download_button(
-                    label="📥 تحميل قالب Excel",
-                    data=csv_template,
-                    file_name="قالب_المعدات.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-                
-                st.caption("💡 احفظ هذا الملف وأضف البيانات فيه")
-            
-            with col2:
-                st.markdown("#### 📤 2. أرفع الملف المعدّل")
-                uploaded_file = st.file_uploader("اختر ملف CSV أو Excel", type=['xlsx', 'xls', 'csv'], key="inventory_upload")
-            
-            if uploaded_file:
-                try:
-                    # قراءة الملف
-                    if uploaded_file.name.endswith('.csv'):
-                        df = pd.read_csv(uploaded_file, encoding='utf-8')
-                    else:
-                        # محاولة قراءة Excel بدون openpyxl
-                        try:
-                            df = pd.read_excel(uploaded_file, engine='openpyxl')
-                        except:
-                            try:
-                                df = pd.read_excel(uploaded_file, engine='xlrd')
-                            except:
-                                st.error("❌ لا يمكن قراءة ملف Excel. يرجى تحويل الملف إلى CSV وإعادة المحاولة")
-                                st.info("💡 يمكنك فتح الملف في Excel وحفظه باسم جديد باختيار 'Save As' ثم اختر CSV")
-                                st.stop()
-                    
-                    st.markdown("### 📊 معاينة البيانات")
-                    st.dataframe(df, use_container_width=True)
-                    
-                    df_columns = df.columns.tolist()
-                    
-                    # محاولة مطابقة الأعمدة تلقائياً
-                    column_mapping = {}
-                    st.markdown("### 🔄 مطابقة الأعمدة")
-                    col1, col2, col3 = st.columns(3)
-                    
-                    required_columns = ['المعرف', 'الاسم', 'التصنيف', 'الحالة', 'الموقع', 'ملاحظات']
-                    
-                    with col1:
-                        st.write("**أعمدة الملف:**")
-                        for col in df_columns:
-                            st.write(f"• {col}")
-                    
-                    with col2:
-                        st.write("**الأعمدة المطلوبة:**")
-                        for col in required_columns:
-                            st.write(f"• {col}")
-                    
-                    with col3:
-                        st.write("**تعيين الأعمدة:**")
-                        for req_col in required_columns:
-                            selected_col = st.selectbox(
-                                f"اختر عمود {req_col}",
-                                df_columns,
-                                key=f"col_{req_col}"
-                            )
-                            column_mapping[req_col] = selected_col
-                    
-                    if st.button("✅ استيراد المعدات", use_container_width=True, type="primary"):
-                        count = 0
-                        errors = 0
-                        
-                        for idx, row in df.iterrows():
-                            try:
-                                item_id = str(row[column_mapping['المعرف']]).strip()
-                                item_name = str(row[column_mapping['الاسم']]).strip()
-                                
-                                if not item_id or not item_name or item_id == 'nan':
-                                    errors += 1
-                                    continue
-                                
-                                if item_id in inventory:
-                                    st.warning(f"⚠️ المعرف '{item_id}' موجود بالفعل، سيتم تحديثه")
-                                
-                                inventory[item_id] = {
-                                    "name": item_name,
-                                    "category": str(row[column_mapping['التصنيف']]).strip() if pd.notna(row[column_mapping['التصنيف']]) else '-',
-                                    "status": str(row[column_mapping['الحالة']]).strip() if pd.notna(row[column_mapping['الحالة']]) else 'متوفر',
-                                    "location": str(row[column_mapping['الموقع']]).strip() if pd.notna(row[column_mapping['الموقع']]) else '-',
-                                    "notes": str(row[column_mapping['ملاحظات']]).strip() if pd.notna(row[column_mapping['ملاحظات']]) else '-',
-                                    "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
-                                }
-                                count += 1
-                            except Exception as e:
-                                errors += 1
-                        
-                        save_inventory(inventory)
-                        st.success(f"✅ تم استيراد **{count}** معدة بنجاح!")
-                        if errors > 0:
-                            st.warning(f"⚠️ تم تخطي **{errors}** صفوف (فارغة أو بدون معرف)")
-                        st.rerun()
-                
-                except Exception as e:
-                    st.error(f"❌ خطأ في قراءة الملف: {str(e)}")
-                    st.info("💡 تجربة: حوّل الملف إلى صيغة CSV وأعد المحاولة")
-        
-        # ============ TAB: تعديل المعدات ============
-        with tab_edit:
-            st.markdown("### ✏️ تعديل معدة موجودة")
-            
-            if inventory:
-                # اختيار المعدة
-                selected_item = st.selectbox(
-                    "اختر المعدة للتعديل",
-                    list(inventory.keys()),
-                    format_func=lambda x: f"{inventory[x]['name']} ({x})",
-                    key="edit_selector"
-                )
-                
-                if selected_item:
-                    st.markdown(f"### 📝 تعديل: **{inventory[selected_item]['name']}**")
-                    
-                    # عرض البيانات الحالية
-                    current_data = inventory[selected_item]
-                    
-                    with st.form("edit_item_form"):
-                        col1, col2 = st.columns(2)
-                        
-                        with col1:
-                            new_id = st.text_input("🆔 المعرف (ID)", value=selected_item)
-                            new_name = st.text_input("📦 الاسم", value=current_data['name'])
-                            new_category = st.selectbox("🏷️ التصنيف", categories, index=categories.index(current_data.get('category', categories[0])))
-                        
-                        with col2:
-                            new_status = st.selectbox(
-                                "📊 الحالة", 
-                                ["متوفر", "معار", "صيانة", "خارج الخدمة"],
-                                index=["متوفر", "معار", "صيانة", "خارج الخدمة"].index(current_data.get('status', 'متوفر'))
-                            )
-                            new_location = st.text_input("📍 الموقع", value=current_data.get('location', ''))
-                            new_notes = st.text_area("📝 ملاحظات", value=current_data.get('notes', ''), height=100)
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            update_btn = st.form_submit_button("💾 حفظ التعديلات", use_container_width=True, type="primary")
-                        with col2:
-                            cancel_btn = st.form_submit_button("❌ إلغاء", use_container_width=True)
-                        
-                        if update_btn:
-                            if not new_id:
-                                st.error("❌ المعرف لا يمكن أن يكون فارغاً!")
-                            elif not new_name:
-                                st.error("❌ الاسم لا يمكن أن يكون فارغاً!")
-                            elif new_id != selected_item and new_id in inventory:
-                                st.error(f"❌ المعرف '{new_id}' مستخدم بالفعل!")
-                            else:
-                                # حذف المعدة القديمة إذا تغير المعرف
-                                if new_id != selected_item:
-                                    del inventory[selected_item]
-                                
-                                # إضافة المعدة المعدلة
-                                inventory[new_id] = {
-                                    "name": new_name,
-                                    "category": new_category,
-                                    "status": new_status,
-                                    "location": new_location,
-                                    "notes": new_notes,
-                                    "date_added": current_data.get('date_added', datetime.now().strftime("%Y-%m-%d %H:%M"))
-                                }
-                                
-                                save_inventory(inventory)
-                                st.success(f"✅ تم تعديل المعدة بنجاح!")
-                                st.info(f"📝 البيانات الجديدة: **{new_name}** ({new_id})")
-                                st.rerun()
-            else:
-                st.info("📭 لا توجد معدات لتعديلها")
-        
-        # ============ TAB: إضافة يدوي ============
-        with tab_add_manual:
-            st.markdown("### ➕ إضافة معدة جديدة")
-            
-            with st.form("add_item_form"):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
-                    item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
-                    item_category = st.selectbox("🏷️ التصنيف", categories)
-                
-                with col2:
-                    item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
-                    item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
-                    item_notes = st.text_area("📝 ملاحظات", height=100)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    submit_btn = st.form_submit_button("💾 حفظ المعدة", use_container_width=True, type="primary")
-                with col2:
-                    reset_btn = st.form_submit_button("🔄 مسح الحقول", use_container_width=True)
-                
-                if submit_btn:
-                    if not item_id:
-                        st.error("❌ يجب إدخال معرف المعدة!")
-                    elif not item_name:
-                        st.error("❌ يجب إدخال اسم المعدة!")
-                    elif item_id in inventory:
-                        st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
-                    else:
-                        inventory[item_id] = {
-                            "name": item_name,
-                            "category": item_category,
-                            "status": item_status,
-                            "location": item_location,
-                            "notes": item_notes,
-                            "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
-                        }
-                        save_inventory(inventory)
-                        st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}** بنجاح!")
-        
-        # ============ TAB: رفع من Excel ============
-        with tab_add_excel:
-            st.markdown("### 📊 رفع معدات من ملف Excel")
-            st.info("📋 يجب أن يحتوي الملف على الأعمدة التالية: المعرف، الاسم، التصنيف، الحالة، الموقع، ملاحظات")
-            
-            # زر تحميل القالب
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("#### 📥 1. حمّل القالب أولاً")
-                template_data = {
-                    "المعرف": ["CAM-001", "LEN-001", "LIT-001"],
-                    "الاسم": ["كاميرا Sony", "عدسة 50mm", "إضاءة LED"],
-                    "التصنيف": ["كاميرات", "عدسات", "إضاءة"],
-                    "الحالة": ["متوفر", "متوفر", "معار"],
-                    "الموقع": ["الرف الأول", "الرف الثاني", "الرف الثالث"],
-                    "ملاحظات": ["جديدة", "ممتازة", "قيد الاستخدام"]
-                }
-                
-                template_df = pd.DataFrame(template_data)
-                csv_template = template_df.to_csv(index=False, encoding='utf-8-sig')
-                
-                st.download_button(
-                    label="📥 تحميل قالب Excel",
-                    data=csv_template,
-                    file_name="قالب_المعدات.csv",
-                    mime="text/csv",
-                    use_container_width=True
-                )
-                
-                st.caption("💡 احفظ هذا الملف وأضف البيانات فيه")
-            
-            with col2:
-                st.markdown("#### 📤 2. أرفع الملف المعدّل")
-                uploaded_file = st.file_uploader("اختر ملف CSV أو Excel", type=['xlsx', 'xls', 'csv'], key="inventory_upload")
-            
-            if uploaded_file:
-                try:
-                    # قراءة الملف
-                    if uploaded_file.name.endswith('.csv'):
-                        df = pd.read_csv(uploaded_file, encoding='utf-8')
-                    else:
-                        # محاولة قراءة Excel بدون openpyxl
-                        try:
-                            df = pd.read_excel(uploaded_file, engine='openpyxl')
-                        except:
-                            try:
-                                df = pd.read_excel(uploaded_file, engine='xlrd')
-                            except:
-                                # إذا فشل الاثنان، اطلب من المستخدم تحويل الملف لـ CSV
-                                st.error("❌ لا يمكن قراءة ملف Excel. يرجى تحويل الملف إلى CSV وإعادة المحاولة")
-                                st.info("💡 يمكنك فتح الملف في Excel وحفظه باسم جديد باختيار 'Save As' ثم اختر CSV")
-                                st.stop()
-                    
-                    st.markdown("### 📊 معاينة البيانات")
-                    st.dataframe(df, use_container_width=True)
-                    
-                    df_columns = df.columns.tolist()
-                    
-                    # محاولة مطابقة الأعمدة تلقائياً
-                    column_mapping = {}
-                    st.markdown("### 🔄 مطابقة الأعمدة")
-                    col1, col2, col3 = st.columns(3)
-                    
-                    required_columns = ['المعرف', 'الاسم', 'التصنيف', 'الحالة', 'الموقع', 'ملاحظات']
-                    
-                    with col1:
-                        st.write("**أعمدة الملف:**")
-                        for col in df_columns:
-                            st.write(f"• {col}")
-                    
-                    with col2:
-                        st.write("**الأعمدة المطلوبة:**")
-                        for col in required_columns:
-                            st.write(f"• {col}")
-                    
-                    with col3:
-                        st.write("**تعيين الأعمدة:**")
-                        for req_col in required_columns:
-                            selected_col = st.selectbox(
-                                f"اختر عمود {req_col}",
-                                df_columns,
-                                key=f"col_{req_col}"
-                            )
-                            column_mapping[req_col] = selected_col
-                    
-                    if st.button("✅ استيراد المعدات", use_container_width=True, type="primary"):
-                        count = 0
-                        errors = 0
-                        
-                        for idx, row in df.iterrows():
-                            try:
-                                item_id = str(row[column_mapping['المعرف']]).strip()
-                                item_name = str(row[column_mapping['الاسم']]).strip()
-                                
-                                if not item_id or not item_name or item_id == 'nan':
-                                    errors += 1
-                                    continue
-                                
-                                if item_id in inventory:
-                                    st.warning(f"⚠️ المعرف '{item_id}' موجود بالفعل، سيتم تحديثه")
-                                
-                                inventory[item_id] = {
-                                    "name": item_name,
-                                    "category": str(row[column_mapping['التصنيف']]).strip() if pd.notna(row[column_mapping['التصنيف']]) else '-',
-                                    "status": str(row[column_mapping['الحالة']]).strip() if pd.notna(row[column_mapping['الحالة']]) else 'متوفر',
-                                    "location": str(row[column_mapping['الموقع']]).strip() if pd.notna(row[column_mapping['الموقع']]) else '-',
-                                    "notes": str(row[column_mapping['ملاحظات']]).strip() if pd.notna(row[column_mapping['ملاحظات']]) else '-',
-                                    "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
-                                }
-                                count += 1
-                            except Exception as e:
-                                errors += 1
-                        
-                        save_inventory(inventory)
-                        st.success(f"✅ تم استيراد **{count}** معدة بنجاح!")
-                        if errors > 0:
-                            st.warning(f"⚠️ تم تخطي **{errors}** صفوف (فارغة أو بدون معرف)")
-                        st.rerun()
-                
-                except Exception as e:
-                    st.error(f"❌ خطأ في قراءة الملف: {str(e)}")
-                    st.info("💡 تجربة: حوّل الملف إلى صيغة CSV وأعد المحاولة")
-        
-        st.divider()
-        
-        # الإحصائيات
-        st.markdown("### 📊 إحصائيات المخزن")
-        
-        col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("🔢 إجمالي المعدات", len(inventory))
         with col2:
@@ -694,492 +138,255 @@ else:
         
         st.divider()
         
-        # قائمة المعدات - جدول
-        st.markdown("### 📋 جدول المعدات")
-        
+        st.markdown("## 📋 جدول جميع المعدات")
         if inventory:
             col1, col2, col3 = st.columns(3)
             with col1:
-                search = st.text_input("🔍 ابحث بالمعرف أو الاسم...")
+                search = st.text_input("🔍 ابحث...")
             with col2:
-                filter_status = st.selectbox("تصفية بالحالة", ["الكل", "متوفر", "معار", "صيانة", "خارج الخدمة"], key="inv_status_filter")
+                filter_status = st.selectbox("تصفية بالحالة", ["الكل", "متوفر", "معار", "صيانة"], key="dash_status")
             with col3:
-                filter_category = st.selectbox("تصفية بالتصنيف", ["الكل"] + categories, key="inv_cat_filter")
+                categories = load_categories()
+                filter_cat = st.selectbox("تصفية بالتصنيف", ["الكل"] + categories, key="dash_cat")
             
-            # إعداد البيانات للجدول
             table_data = []
-            for item_id_loop, item in inventory.items():
-                # تطبيق الفلاتر
-                if search and search.lower() not in item_id_loop.lower() and search.lower() not in item['name'].lower():
+            for item_id, item in inventory.items():
+                if search and search.lower() not in item_id.lower() and search.lower() not in item['name'].lower():
                     continue
                 if filter_status != "الكل" and item['status'] != filter_status:
                     continue
-                if filter_category != "الكل" and item.get('category') != filter_category:
+                if filter_cat != "الكل" and item.get('category') != filter_cat:
                     continue
                 
                 status_emoji = "🟢" if item['status'] == 'متوفر' else "🟡" if item['status'] == 'معار' else "🔴"
-                
                 table_data.append({
-                    "🆔 المعرف": item_id_loop,
+                    "🆔 المعرف": item_id,
                     "📦 الاسم": item['name'],
                     "🏷️ التصنيف": item.get('category', '-'),
                     "📍 الموقع": item.get('location', '-'),
                     "📊 الحالة": f"{status_emoji} {item['status']}",
-                    "📅 التاريخ": item.get('date_added', '-'),
-                    "📝 ملاحظات": item.get('notes', '-')[:50] if item.get('notes') else '-'
                 })
             
             if table_data:
                 df = pd.DataFrame(table_data)
                 st.dataframe(df, use_container_width=True, height=400, hide_index=True)
-                st.caption(f"✅ عدد المعدات المعروضة: **{len(table_data)}** من **{len(inventory)}**")
+        else:
+            st.info("📭 لا توجد معدات")
+
+    # ============ TAB 2: المخزن ============
+    with tab2:
+        st.markdown("## 📦 إدارة المخزن")
+        inventory = load_inventory()
+        categories = load_categories()
+        
+        sub_tab1, sub_tab2, sub_tab3 = st.tabs(["➕ إضافة", "📊 رفع Excel", "✏️ تعديل"])
+        
+        # ===== إضافة =====
+        with sub_tab1:
+            st.markdown("### ➕ إضافة معدة جديدة")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                add_id = st.text_input("🆔 المعرف", placeholder="CAM-001", key="form_id_1")
+                add_name = st.text_input("📦 الاسم", placeholder="الاسم", key="form_name_1")
+                add_category = st.selectbox("🏷️ التصنيف", categories, key="form_cat_1")
+            
+            with col2:
+                add_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة"], key="form_stat_1")
+                add_location = st.text_input("📍 الموقع", placeholder="الرف", key="form_loc_1")
+                add_notes = st.text_area("📝 ملاحظات", height=80, key="form_note_1")
+            
+            if st.button("💾 حفظ المعدة", use_container_width=True, type="primary", key="btn_save_1"):
+                if not add_id or not add_name:
+                    st.error("❌ املأ الحقول المطلوبة!")
+                elif add_id in inventory:
+                    st.error(f"❌ المعرف '{add_id}' موجود!")
+                else:
+                    inventory[add_id] = {
+                        "name": add_name,
+                        "category": add_category,
+                        "status": add_status,
+                        "location": add_location,
+                        "notes": add_notes,
+                        "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
+                    }
+                    save_inventory(inventory)
+                    st.success(f"✅ تم حفظ: **{add_name}**")
+                    st.balloons()
+        
+        # ===== رفع Excel =====
+        with sub_tab2:
+            st.markdown("### 📊 رفع من Excel/CSV")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                template_data = {"المعرف": ["CAM-001"], "الاسم": ["كاميرا"], "التصنيف": ["كاميرات"], "الحالة": ["متوفر"], "الموقع": ["الرف"], "ملاحظات": ["-"]}
+                template_df = pd.DataFrame(template_data)
+                st.download_button("📥 تحميل قالب", template_df.to_csv(index=False, encoding='utf-8-sig'), "قالب.csv", "text/csv", use_container_width=True)
+            
+            with col2:
+                uploaded = st.file_uploader("📤 اختر ملف", type=['csv', 'xlsx', 'xls'], key="upload_inv")
+            
+            if uploaded:
+                try:
+                    if uploaded.name.endswith('csv'):
+                        df = pd.read_csv(uploaded, encoding='utf-8')
+                    else:
+                        df = pd.read_excel(uploaded)
+                    
+                    st.dataframe(df, use_container_width=True)
+                    
+                    cols = df.columns.tolist()
+                    st.markdown("### مطابقة الأعمدة")
+                    
+                    col_map = {}
+                    for req in ['المعرف', 'الاسم', 'التصنيف', 'الحالة', 'الموقع', 'ملاحظات']:
+                        col_map[req] = st.selectbox(f"اختر {req}", cols, key=f"map_{req}")
+                    
+                    if st.button("✅ استيراد", use_container_width=True, type="primary", key="btn_import_1"):
+                        count = 0
+                        for _, row in df.iterrows():
+                            item_id = str(row[col_map['المعرف']]).strip()
+                            item_name = str(row[col_map['الاسم']]).strip()
+                            if item_id and item_name and item_id != 'nan':
+                                inventory[item_id] = {
+                                    "name": item_name,
+                                    "category": str(row[col_map['التصنيف']]) if pd.notna(row[col_map['التصنيف']]) else '-',
+                                    "status": str(row[col_map['الحالة']]) if pd.notna(row[col_map['الحالة']]) else 'متوفر',
+                                    "location": str(row[col_map['الموقع']]) if pd.notna(row[col_map['الموقع']]) else '-',
+                                    "notes": str(row[col_map['ملاحظات']]) if pd.notna(row[col_map['ملاحظات']]) else '-',
+                                    "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
+                                }
+                                count += 1
+                        save_inventory(inventory)
+                        st.success(f"✅ تم استيراد {count} معدة!")
+                except Exception as e:
+                    st.error(f"❌ خطأ: {str(e)}")
+        
+        # ===== تعديل =====
+        with sub_tab3:
+            st.markdown("### ✏️ تعديل معدة")
+            
+            if inventory:
+                selected = st.selectbox("اختر المعدة", list(inventory.keys()), format_func=lambda x: f"{inventory[x]['name']} ({x})", key="edit_select_1")
+                current = inventory[selected]
                 
-                st.divider()
-                
-                # حذف المعدة
-                st.markdown("### 🗑️ حذف معدة")
                 col1, col2 = st.columns(2)
-                
                 with col1:
-                    item_to_delete = st.selectbox(
-                        "اختر المعدة للحذف",
-                        list(inventory.keys()),
-                        format_func=lambda x: f"{inventory[x]['name']} ({x})",
-                        key="delete_selector"
-                    )
+                    edit_id = st.text_input("🆔 المعرف", value=selected, key="edit_id_1")
+                    edit_name = st.text_input("📦 الاسم", value=current['name'], key="edit_name_1")
+                    edit_cat = st.selectbox("🏷️ التصنيف", categories, index=categories.index(current.get('category', categories[0])), key="edit_cat_1")
                 
                 with col2:
-                    password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key="delete_password")
+                    edit_stat = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة"], index=["متوفر", "معار", "صيانة"].index(current.get('status', 'متوفر')), key="edit_stat_1")
+                    edit_loc = st.text_input("📍 الموقع", value=current.get('location', ''), key="edit_loc_1")
+                    edit_note = st.text_area("📝 ملاحظات", value=current.get('notes', ''), height=80, key="edit_note_1")
                 
-                if st.button("🗑️ حذف المعدة", use_container_width=True, type="secondary"):
-                    if not password:
-                        st.error("❌ يجب إدخال كلمة السر!")
-                    elif hash_password(password) != users[st.session_state["username"]]["password"]:
-                        st.error("❌ كلمة السر غير صحيحة!")
+                if st.button("💾 حفظ التعديلات", use_container_width=True, type="primary", key="btn_edit_1"):
+                    if not edit_id or not edit_name:
+                        st.error("❌ املأ الحقول!")
+                    elif edit_id != selected and edit_id in inventory:
+                        st.error(f"❌ المعرف موجود!")
                     else:
-                        item_name = inventory[item_to_delete]['name']
-                        del inventory[item_to_delete]
+                        if edit_id != selected:
+                            del inventory[selected]
+                        inventory[edit_id] = {
+                            "name": edit_name,
+                            "category": edit_cat,
+                            "status": edit_stat,
+                            "location": edit_loc,
+                            "notes": edit_note,
+                            "date_added": current.get('date_added', datetime.now().strftime("%Y-%m-%d %H:%M"))
+                        }
                         save_inventory(inventory)
-                        st.success(f"✅ تم حذف المعدة: **{item_name}** بنجاح!")
+                        st.success("✅ تم التعديل!")
                         st.rerun()
             else:
-                st.info("❌ لم يتم العثور على معدات تطابق الفلاتر")
-        else:
-            st.info("📭 لا توجد معدات مسجلة")
+                st.info("📭 لا توجد معدات")
 
     # ============ TAB 3: الإعارات ============
     with tab3:
-        st.markdown("## 📋 نظام الإعارات")
+        st.markdown("## 📋 الإعارات")
         loans = load_loans()
         inventory = load_inventory()
         
-        tab_checkout, tab_return, tab_active = st.tabs(["📤 سحب", "📥 إرجاع", "📦 نشطة"])
+        sub_loan1, sub_loan2 = st.tabs(["📤 سحب", "📥 إرجاع"])
         
-        with tab_checkout:
-            st.markdown("### 📤 سحب معدة جديدة")
-            
+        with sub_loan1:
             if inventory:
-                available_items = {k: v for k, v in inventory.items() if v.get('status') == 'متوفر'}
-                
-                if available_items:
+                available = {k: v for k, v in inventory.items() if v['status'] == 'متوفر'}
+                if available:
                     col1, col2 = st.columns(2)
-                    
                     with col1:
-                        item_id = st.selectbox("اختر المعدة", list(available_items.keys()), 
-                                              format_func=lambda x: f"{available_items[x]['name']} ({x})")
-                        customer = st.text_input("اسم العميل/الأوردر")
-                        employee = st.text_input("الموظف المستقبل")
-                    
+                        item = st.selectbox("اختر المعدة", list(available.keys()), format_func=lambda x: available[x]['name'], key="loan_item_1")
+                        customer = st.text_input("اسم العميل", key="loan_cust_1")
                     with col2:
-                        return_date = st.date_input("تاريخ الإرجاع المتوقع", 
-                                                   value=datetime.now().date() + timedelta(days=7))
-                        loan_notes = st.text_area("ملاحظات الإعارة")
+                        employee = st.text_input("الموظف", key="loan_emp_1")
+                        ret_date = st.date_input("تاريخ الإرجاع", value=datetime.now().date() + timedelta(days=7), key="loan_date_1")
                     
-                    if st.button("✅ تأكيد السحب", use_container_width=True, type="primary"):
+                    if st.button("✅ تسجيل السحب", use_container_width=True, type="primary", key="btn_loan_1"):
                         if customer and employee:
                             loan_id = f"LOAN-{len(loans)+1:05d}"
                             loans[loan_id] = {
-                                "item_id": item_id,
-                                "item_name": inventory[item_id]['name'],
+                                "item_id": item,
+                                "item_name": available[item]['name'],
                                 "customer": customer,
                                 "employee": employee,
                                 "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                "return_date": return_date.strftime("%Y-%m-%d"),
-                                "notes": loan_notes,
+                                "return_date": ret_date.strftime("%Y-%m-%d"),
                                 "status": "نشطة"
                             }
                             save_loans(loans)
-                            
-                            inventory[item_id]['status'] = 'معار'
+                            inventory[item]['status'] = 'معار'
                             save_inventory(inventory)
-                            
-                            st.success(f"✅ تم تسجيل الإعارة! الرقم: **{loan_id}**")
-                            st.rerun()
+                            st.success(f"✅ {loan_id}")
                         else:
-                            st.error("❌ يرجى ملء جميع الحقول!")
-                else:
-                    st.info("⚠️ لا توجد معدات متوفرة للسحب")
-            else:
-                st.info("📭 لا توجد معدات مسجلة")
+                            st.error("❌ املأ الحقول!")
         
-        with tab_return:
-            st.markdown("### 📥 إرجاع معدة")
-            
-            active_loans = {k: v for k, v in loans.items() if v.get('status') == 'نشطة'}
-            
-            if active_loans:
-                loan_id = st.selectbox("اختر الإعارة", list(active_loans.keys()), 
-                                      format_func=lambda x: f"{x} - {active_loans[x]['customer']}")
+        with sub_loan2:
+            active = {k: v for k, v in loans.items() if v['status'] == 'نشطة'}
+            if active:
+                selected_loan = st.selectbox("اختر الإعارة", list(active.keys()), format_func=lambda x: f"{x} - {active[x]['customer']}", key="return_loan_1")
                 
-                if loan_id:
-                    loan_data = active_loans[loan_id]
-                    st.info(f"📦 المعدة: **{loan_data['item_name']}** | 👤 العميل: **{loan_data['customer']}'**")
-                    
-                    return_condition = st.selectbox("حالة المعدة عند الإرجاع", ["ممتازة", "جيدة", "بها أضرار", "غير صالحة"])
-                    return_notes = st.text_area("ملاحظات الإرجاع")
-                    
-                    if st.button("✅ تأكيد الإرجاع", use_container_width=True, type="primary"):
-                        item_id = loan_data['item_id']
-                        loans[loan_id]['status'] = 'مرجعة'
-                        loans[loan_id]['return_condition'] = return_condition
-                        loans[loan_id]['return_notes'] = return_notes
-                        loans[loan_id]['actual_return_date'] = datetime.now().strftime("%Y-%m-%d")
-                        save_loans(loans)
-                        
-                        inventory[item_id]['status'] = 'متوفر'
-                        save_inventory(inventory)
-                        
-                        st.success("✅ تم تسجيل الإرجاع بنجاح!")
-                        st.rerun()
-            else:
-                st.info("📭 لا توجد إعارات نشطة")
-        
-        with tab_active:
-            st.markdown("### 📦 الإعارات النشطة")
-            
-            active_loans = {k: v for k, v in loans.items() if v.get('status') == 'نشطة'}
-            
-            if active_loans:
-                for loan_id, data in active_loans.items():
-                    with st.container():
-                        col1, col2 = st.columns([3, 1])
-                        
-                        with col1:
-                            st.write(f"**{loan_id}** - {data['customer']}")
-                            st.caption(f"📦 {data['item_name']} | 👤 {data['employee']} | 📅 {data['return_date']}")
-                        
-                        with col2:
-                            days_left = (datetime.strptime(data['return_date'], '%Y-%m-%d').date() - datetime.now().date()).days
-                            if days_left < 0:
-                                st.error(f"⚠️ {abs(days_left)} يوم تأخير")
-                            else:
-                                st.info(f"📅 {days_left} أيام")
-                        
-                        st.divider()
+                if st.button("✅ إرجاع", use_container_width=True, type="primary", key="btn_return_1"):
+                    loans[selected_loan]['status'] = 'مرجعة'
+                    loans[selected_loan]['actual_return_date'] = datetime.now().strftime("%Y-%m-%d")
+                    save_loans(loans)
+                    item_id = loans[selected_loan]['item_id']
+                    inventory[item_id]['status'] = 'متوفر'
+                    save_inventory(inventory)
+                    st.success("✅ تم الإرجاع!")
+                    st.rerun()
             else:
                 st.info("✅ لا توجد إعارات نشطة")
 
-    # ============ TAB 4: البحث ============
+    # ============ TAB 4: الإعدادات ============
     with tab4:
-        st.markdown("## 🔍 البحث والتتبع")
-        
-        inventory = load_inventory()
-        loans = load_loans()
-        
-        search_type = st.radio("نوع البحث", ["المعدات", "الإعارات", "العميل"])
-        search_term = st.text_input("ابحث هنا...").strip()
-        
-        if search_term:
-            if search_type == "المعدات":
-                found = {k: v for k, v in inventory.items() 
-                        if search_term.lower() in k.lower() or search_term.lower() in v['name'].lower()}
-                
-                if found:
-                    st.success(f"✅ عثرت على **{len(found)}** معدة")
-                    for item_id, item in found.items():
-                        col1, col2 = st.columns([3, 1])
-                        with col1:
-                            st.write(f"**{item['name']}** ({item_id})")
-                            st.caption(f"التصنيف: {item.get('category')} | الموقع: {item.get('location')}")
-                        with col2:
-                            emoji = "🟢" if item['status'] == 'متوفر' else "🟡"
-                            st.write(f"{emoji} {item['status']}")
-                        st.divider()
-                else:
-                    st.warning("❌ لم يتم العثور على نتائج")
+        if st.session_state["role"] == "مدير":
+            st.markdown("## ⚙️ الإعدادات")
             
-            elif search_type == "الإعارات":
-                found = {k: v for k, v in loans.items() if search_term.lower() in k.lower()}
-                
-                if found:
-                    for loan_id, loan in found.items():
-                        st.write(f"**{loan_id}**")
-                        st.info(f"العميل: {loan['customer']} | المعدة: {loan.get('item_name')} | الحالة: {loan['status']}")
-                        st.divider()
-                else:
-                    st.warning("❌ لم يتم العثور على نتائج")
-            
-            elif search_type == "العميل":
-                found = {k: v for k, v in loans.items() if search_term.lower() in v['customer'].lower()}
-                
-                if found:
-                    st.success(f"✅ وجدت **{len(found)}** إعارات")
-                    for loan_id, loan in found.items():
-                        st.write(f"**{loan_id}** - {loan['customer']}")
-                        st.caption(f"المعدة: {loan.get('item_name')} | {loan['status']}")
-                        st.divider()
-                else:
-                    st.warning("❌ لم يتم العثور على نتائج")
-
-    # ============ TAB 5: التقارير ============
-    with tab5:
-        st.markdown("## 📈 التقارير والإحصائيات")
-        
-        inventory = load_inventory()
-        loans = load_loans()
-        
-        report_type = st.radio("نوع التقرير", ["📊 الإحصائيات", "📋 جرد المعدات", "📦 الإعارات"])
-        
-        if report_type == "📊 الإحصائيات":
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown("### توزيع المعدات حسب الحالة")
-                statuses = {}
-                for item in inventory.values():
-                    status = item.get('status')
-                    statuses[status] = statuses.get(status, 0) + 1
+                st.markdown("### 👥 إنشاء حساب")
+                new_user = st.text_input("اسم المستخدم", key="new_user_1")
+                new_pwd = st.text_input("كلمة السر", type="password", key="new_pwd_1")
                 
-                if statuses:
-                    status_df = pd.DataFrame(list(statuses.items()), columns=['الحالة', 'العدد'])
-                    st.bar_chart(status_df.set_index('الحالة'))
-            
-            with col2:
-                st.markdown("### توزيع حسب التصنيف")
-                categories_count = {}
-                for item in inventory.values():
-                    cat = item.get('category', 'بدون تصنيف')
-                    categories_count[cat] = categories_count.get(cat, 0) + 1
-                
-                if categories_count:
-                    cat_df = pd.DataFrame(list(categories_count.items()), columns=['التصنيف', 'العدد'])
-                    st.bar_chart(cat_df.set_index('التصنيف'))
-            
-            st.divider()
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("إجمالي المعدات", len(inventory))
-            with col2:
-                st.metric("إجمالي الإعارات", len(loans))
-            with col3:
-                active = sum(1 for l in loans.values() if l.get('status') == 'نشطة')
-                st.metric("إعارات نشطة", active)
-        
-        elif report_type == "📋 جرد المعدات":
-            st.markdown("## 📋 تقرير جرد المعدات الشامل")
-            st.caption(f"📅 تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-            
-            if inventory:
-                # ملخص
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("إجمالي المعدات", len(inventory))
-                with col2:
-                    available = sum(1 for i in inventory.values() if i.get('status') == 'متوفر')
-                    st.metric("متوفرة", available)
-                with col3:
-                    loaned = sum(1 for i in inventory.values() if i.get('status') == 'معار')
-                    st.metric("معارة", loaned)
-                with col4:
-                    maintenance = sum(1 for i in inventory.values() if i.get('status') == 'صيانة')
-                    st.metric("صيانة", maintenance)
-                
-                st.divider()
-                
-                # جدول تفصيلي
-                st.markdown("### 📊 تفاصيل المعدات")
-                
-                report_data = []
-                for item_id, item in inventory.items():
-                    report_data.append({
-                        "المعرف": item_id,
-                        "الاسم": item['name'],
-                        "التصنيف": item.get('category', '-'),
-                        "الحالة": item['status'],
-                        "الموقع": item.get('location', '-'),
-                        "تاريخ الإضافة": item.get('date_added', '-'),
-                        "ملاحظات": item.get('notes', '-')
-                    })
-                
-                df = pd.DataFrame(report_data)
-                st.dataframe(df, use_container_width=True)
-                
-                # تحميل التقرير
-                csv_data = df.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    label="📥 تحميل التقرير (CSV)",
-                    data=csv_data,
-                    file_name=f"inventory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv"
-                )
-                
-                # التقسيم حسب الحالة
-                st.markdown("### 📌 التفصيل حسب الحالة")
-                
-                statuses = set(item['status'] for item in inventory.values())
-                for status in sorted(statuses):
-                    items_by_status = {k: v for k, v in inventory.items() if v['status'] == status}
-                    
-                    with st.expander(f"{status} ({len(items_by_status)})"):
-                        for item_id, item in items_by_status.items():
-                            st.write(f"**{item['name']}** ({item_id})")
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.caption(f"📂 التصنيف: {item.get('category')}")
-                                st.caption(f"📍 الموقع: {item.get('location')}")
-                            with col2:
-                                st.caption(f"📅 التاريخ: {item.get('date_added')}")
-                                if item.get('notes'):
-                                    st.caption(f"📝 ملاحظات: {item['notes']}")
-            else:
-                st.info("📭 لا توجد معدات لعرضها")
-        
-        elif report_type == "📦 الإعارات":
-            st.markdown("## 📦 تقرير الإعارات")
-            st.caption(f"📅 تاريخ التقرير: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-            
-            if loans:
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("إجمالي الإعارات", len(loans))
-                with col2:
-                    active = sum(1 for l in loans.values() if l.get('status') == 'نشطة')
-                    st.metric("نشطة", active)
-                with col3:
-                    returned = sum(1 for l in loans.values() if l.get('status') == 'مرجعة')
-                    st.metric("مرجعة", returned)
-                
-                st.divider()
-                
-                report_data = []
-                for loan_id, loan in loans.items():
-                    report_data.append({
-                        "رقم الإعارة": loan_id,
-                        "المعدة": loan.get('item_name', '-'),
-                        "العميل": loan['customer'],
-                        "الموظف": loan['employee'],
-                        "تاريخ السحب": loan['date'],
-                        "تاريخ الإرجاع": loan['return_date'],
-                        "الحالة": loan['status'],
-                        "ملاحظات": loan.get('notes', '-')
-                    })
-                
-                df = pd.DataFrame(report_data)
-                st.dataframe(df, use_container_width=True)
-                
-                csv_data = df.to_csv(index=False, encoding='utf-8-sig')
-                st.download_button(
-                    label="📥 تحميل التقرير (CSV)",
-                    data=csv_data,
-                    file_name=f"loans_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.info("📭 لا توجد إعارات لعرضها")
-
-    # ============ TAB 6: الإعدادات ============
-    with tab6:
-        st.markdown("## ⚙️ الإعدادات")
-        
-        if st.session_state["role"] == "مدير":
-            tab_users, tab_categories, tab_backup = st.tabs(["👥 الحسابات", "🏷️ التصنيفات", "💾 النسخ الاحتياطي"])
-            
-            with tab_users:
-                st.markdown("### إنشاء حساب جديد")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    new_user = st.text_input("اسم المستخدم الجديد")
-                    new_pwd = st.text_input("كلمة السر", type="password")
-                
-                with col2:
-                    new_role = st.selectbox("الصلاحية", ["مستخدم", "مدير"])
-                    
-                    if st.button("➕ إنشاء حساب", use_container_width=True):
-                        if new_user and new_pwd:
-                            if new_user not in users:
-                                users[new_user] = {"password": hash_password(new_pwd), "role": new_role}
-                                save_users(users)
-                                st.success(f"✅ تم إنشاء حساب {new_user}")
-                                st.rerun()
-                            else:
-                                st.error("❌ المستخدم موجود بالفعل!")
+                if st.button("➕ إنشاء", use_container_width=True, key="btn_create_user_1"):
+                    if new_user and new_pwd:
+                        if new_user not in users:
+                            users[new_user] = {"password": hash_password(new_pwd), "role": "مستخدم"}
+                            save_users(users)
+                            st.success(f"✅ تم إنشاء: {new_user}")
                         else:
-                            st.error("❌ يرجى ملء جميع الحقول!")
-                
-                st.divider()
-                st.markdown("### الحسابات الموجودة")
-                
-                for username, user_data in users.items():
-                    col1, col2 = st.columns([2, 1])
-                    
-                    with col1:
-                        st.write(f"👤 **{username}** - {user_data['role']}")
-                    
-                    with col2:
-                        if username != st.session_state['username']:
-                            if st.button("🗑️ حذف", key=f"del_user_{username}"):
-                                del users[username]
-                                save_users(users)
-                                st.success("✅ تم الحذف")
-                                st.rerun()
+                            st.error("❌ المستخدم موجود!")
             
-            with tab_categories:
-                st.markdown("### إدارة التصنيفات")
-                categories = load_categories()
-                
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    new_cat = st.text_input("تصنيف جديد")
-                    if st.button("➕ إضافة", use_container_width=True):
-                        if new_cat and new_cat not in categories:
-                            categories.append(new_cat)
-                            save_categories(categories)
-                            st.success("✅ تمت الإضافة!")
-                            st.rerun()
-                
-                st.divider()
-                st.markdown("### التصنيفات الموجودة")
-                for i, cat in enumerate(categories):
-                    col1, col2 = st.columns([2, 1])
-                    with col1:
-                        st.write(f"🏷️ {cat}")
-                    with col2:
-                        if st.button("🗑️", key=f"del_cat_{i}"):
-                            categories.pop(i)
-                            save_categories(categories)
-                            st.rerun()
-            
-            with tab_backup:
-                st.markdown("### 💾 النسخ الاحتياطي")
-                st.info("📊 حفظ النسخ الاحتياطية من البيانات")
-                
-                if st.button("📥 تحميل نسخة احتياطية من البيانات"):
-                    backup_data = {
-                        "users": users,
-                        "inventory": load_inventory(),
-                        "loans": load_loans(),
-                        "categories": categories
-                    }
-                    st.download_button(
-                        label="📥 حمّل البيانات (JSON)",
-                        data=json.dumps(backup_data, ensure_ascii=False, indent=2),
-                        file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                        mime="application/json"
-                    )
+            with col2:
+                st.markdown("### 👤 الحسابات")
+                for username, data in users.items():
+                    st.write(f"👤 {username} - {data['role']}")
         else:
-            st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
+            st.warning("⚠️ صلاحيات مدير فقط")
 
 st.markdown("---")
-st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#64748b;'>نظام إدارة الاستوديو v4.0 ✨</p>", unsafe_allow_html=True)
