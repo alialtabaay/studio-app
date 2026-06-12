@@ -438,6 +438,107 @@ else:
                     st.error(f"❌ خطأ في قراءة الملف: {str(e)}")
                     st.info("💡 تجربة: حوّل الملف إلى صيغة CSV وأعد المحاولة")
         
+        # ============ TAB: تعديل المعدات ============
+        with tab_edit:
+            st.markdown("## ✏️ تعديل المعدات")
+            inventory = load_inventory()
+            categories = load_categories()
+            
+            if inventory:
+                # بحث محسّن
+                search_term = st.text_input("🔍 ابحث عن معدة (معرف/اسم/موقع/تصنيف)", placeholder="اكتب أي شيء...")
+                
+                # تصفية
+                filtered_items = {}
+                for item_id, item in inventory.items():
+                    if search_term.lower() in item_id.lower() or \
+                       search_term.lower() in item['name'].lower() or \
+                       search_term.lower() in item.get('location', '').lower() or \
+                       search_term.lower() in item.get('category', '').lower():
+                        filtered_items[item_id] = item
+                
+                if filtered_items:
+                    st.caption(f"📊 عدد النتائج: {len(filtered_items)} من {len(inventory)}")
+                    
+                    # جدول سريع
+                    st.markdown("### 📋 المعدات:")
+                    for item_id, item in filtered_items.items():
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.write(f"🆔 **{item_id}** • 📦 {item['name']} • 📍 {item.get('location', '-')}")
+                        with col2:
+                            if st.button("تعديل ✏️", key=f"edit_{item_id}", use_container_width=True):
+                                st.session_state[f"selected_{item_id}"] = True
+                    
+                    st.divider()
+                    
+                    # نموذج التعديل
+                    st.markdown("### 📝 نموذج التعديل")
+                    
+                    selected_id = st.selectbox(
+                        "اختر المعدة للتعديل",
+                        list(filtered_items.keys()),
+                        format_func=lambda x: f"{filtered_items[x]['name']} ({x})"
+                    )
+                    
+                    if selected_id:
+                        item = filtered_items[selected_id]
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            new_id = st.text_input("🆔 المعرف", value=selected_id, key="edit_id")
+                            new_name = st.text_input("📦 الاسم", value=item['name'], key="edit_name")
+                            new_category = st.selectbox("🏷️ التصنيف", categories, 
+                                                       index=categories.index(item.get('category', categories[0])), key="edit_cat")
+                        
+                        with col2:
+                            new_status = st.selectbox("📊 الحالة", 
+                                                      ["متوفر", "معار", "صيانة", "خارج الخدمة"],
+                                                      index=["متوفر", "معار", "صيانة", "خارج الخدمة"].index(item.get('status', 'متوفر')), key="edit_stat")
+                            new_location = st.text_input("📍 الموقع", value=item.get('location', ''), key="edit_loc")
+                            new_notes = st.text_area("📝 ملاحظات", value=item.get('notes', ''), height=100, key="edit_notes")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            if st.button("💾 حفظ التعديل", use_container_width=True, type="primary", key=f"save_{selected_id}"):
+                                if not new_id or not new_name:
+                                    st.error("❌ املأ الحقول المطلوبة!")
+                                elif new_id != selected_id and new_id in inventory:
+                                    st.error(f"❌ المعرف '{new_id}' موجود بالفعل!")
+                                else:
+                                    if new_id != selected_id:
+                                        del inventory[selected_id]
+                                    
+                                    inventory[new_id] = {
+                                        "name": new_name,
+                                        "category": new_category,
+                                        "status": new_status,
+                                        "location": new_location,
+                                        "notes": new_notes,
+                                        "date_added": item.get('date_added', datetime.now().strftime("%Y-%m-%d %H:%M"))
+                                    }
+                                    save_inventory(inventory)
+                                    st.success("✅ تم التعديل بنجاح!")
+                                    st.rerun()
+                        
+                        with col2:
+                            if st.button("🗑️ حذف المعدة", use_container_width=True, type="secondary", key=f"delete_{selected_id}"):
+                                password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key=f"pwd_{selected_id}")
+                                if password:
+                                    if hash_password(password) != users[st.session_state["username"]]["password"]:
+                                        st.error("❌ كلمة السر غير صحيحة!")
+                                    else:
+                                        del inventory[selected_id]
+                                        save_inventory(inventory)
+                                        st.success(f"✅ تم حذف المعدة!")
+                                        st.rerun()
+                else:
+                    st.info(f"❌ لم يتم العثور على نتائج")
+            else:
+                st.info("📭 لا توجد معدات")
+        
         st.divider()
         
         # الإحصائيات
