@@ -2211,26 +2211,32 @@ else:
                             if delete_inventory or delete_loans or delete_categories:
                                 st.warning("⚠️ سيتم حذف البيانات المختارة!")
                                 
+                                password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key="delete_partial_password")
+                                
                                 if st.button("⚠️ أؤكد الحذف الانتقائي", use_container_width=True, type="secondary"):
-                                    password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key="delete_partial_password")
-                                    
                                     if password and hash_password(password) == users[st.session_state["username"]]["password"]:
-                                        if delete_inventory:
-                                            with open('data/inventory.json', 'w', encoding='utf-8') as f:
-                                                json.dump({}, f, ensure_ascii=False, indent=2)
-                                            st.success("✅ تم حذف المعدات!")
+                                        import os
+                                        os.makedirs('data', exist_ok=True)
                                         
-                                        if delete_loans:
-                                            with open('data/loans.json', 'w', encoding='utf-8') as f:
-                                                json.dump({}, f, ensure_ascii=False, indent=2)
-                                            st.success("✅ تم حذف الإعارات!")
-                                        
-                                        if delete_categories:
-                                            with open('data/categories.json', 'w', encoding='utf-8') as f:
-                                                json.dump(["كاميرا", "عدسات", "إضاءة", "صوتيات"], f, ensure_ascii=False, indent=2)
-                                            st.success("✅ تم حذف التصنيفات! (أُعيدت الافتراضية)")
-                                        
-                                        st.info("🔄 حدّث الصفحة لرؤية التغييرات")
+                                        try:
+                                            if delete_inventory:
+                                                with open('data/inventory.json', 'w', encoding='utf-8') as f:
+                                                    json.dump({}, f, ensure_ascii=False, indent=2)
+                                                st.success("✅ تم حذف المعدات!")
+                                            
+                                            if delete_loans:
+                                                with open('data/loans.json', 'w', encoding='utf-8') as f:
+                                                    json.dump({}, f, ensure_ascii=False, indent=2)
+                                                st.success("✅ تم حذف الإعارات!")
+                                            
+                                            if delete_categories:
+                                                with open('data/categories.json', 'w', encoding='utf-8') as f:
+                                                    json.dump(["كاميرا", "عدسات", "إضاءة", "صوتيات"], f, ensure_ascii=False, indent=2)
+                                                st.success("✅ تم حذف التصنيفات! (أُعيدت الافتراضية)")
+                                            
+                                            st.info("🔄 حدّث الصفحة لرؤية التغييرات")
+                                        except Exception as e:
+                                            st.error(f"❌ خطأ: {str(e)}")
                                     elif password:
                                         st.error("❌ كلمة السر غير صحيحة!")
                             else:
@@ -2248,34 +2254,37 @@ else:
                         
                         st.divider()
                         
-                        col1, col2 = st.columns([1, 1])
+                        # تأكيد الحذف
+                        confirm = st.checkbox("✅ أنا متأكد 100% من الحذف", value=False, key="confirm_delete_all")
                         
-                        with col1:
+                        if confirm:
+                            password = st.text_input("أدخل كلمة السر للتأكيد الأخير", type="password", key="delete_all_password")
+                            
                             if st.button("💥 حذف كل البيانات!", use_container_width=True, type="primary"):
-                                password = st.text_input("أدخل كلمة السر للتأكيد الأخير", type="password", key="delete_all_password")
-                                
                                 if password and hash_password(password) == users[st.session_state["username"]]["password"]:
-                                    # حذف كل شيء
-                                    with open('data/inventory.json', 'w', encoding='utf-8') as f:
-                                        json.dump({}, f, ensure_ascii=False, indent=2)
+                                    import os
+                                    os.makedirs('data', exist_ok=True)
                                     
-                                    with open('data/loans.json', 'w', encoding='utf-8') as f:
-                                        json.dump({}, f, ensure_ascii=False, indent=2)
-                                    
-                                    with open('data/categories.json', 'w', encoding='utf-8') as f:
-                                        json.dump(["كاميرا", "عدسات", "إضاءة", "صوتيات"], f, ensure_ascii=False, indent=2)
-                                    
-                                    st.success("💥 تم حذف كل البيانات بنجاح!")
-                                    st.balloons()
-                                    st.info("🔄 النظام نظيف تماماً! حدّث الصفحة للبدء من جديد")
+                                    try:
+                                        # حذف كل شيء
+                                        with open('data/inventory.json', 'w', encoding='utf-8') as f:
+                                            json.dump({}, f, ensure_ascii=False, indent=2)
+                                        
+                                        with open('data/loans.json', 'w', encoding='utf-8') as f:
+                                            json.dump({}, f, ensure_ascii=False, indent=2)
+                                        
+                                        with open('data/categories.json', 'w', encoding='utf-8') as f:
+                                            json.dump(["كاميرا", "عدسات", "إضاءة", "صوتيات"], f, ensure_ascii=False, indent=2)
+                                        
+                                        st.success("💥 تم حذف كل البيانات بنجاح!")
+                                        st.balloons()
+                                        st.info("🔄 النظام نظيف تماماً! حدّث الصفحة للبدء من جديد")
+                                    except Exception as e:
+                                        st.error(f"❌ خطأ: {str(e)}")
                                 elif password:
                                     st.error("❌ كلمة السر غير صحيحة!")
-                        
-                        with col2:
-                            st.markdown("**التأكيد:**")
-                            confirm = st.checkbox("✅ أنا متأكد 100% من الحذف", value=False)
-                            if not confirm:
-                                st.warning("⚠️ يجب تأكيد الحذف!")
+                        else:
+                            st.warning("⚠️ يجب تأكيد الحذف أولاً!")
                     
                     with delete_tab3:
                         st.markdown("#### ❌ لا تحذف")
