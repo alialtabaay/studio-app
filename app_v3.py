@@ -2110,34 +2110,65 @@ else:
                     
                     if uploaded_file is not None:
                         try:
-                            backup_data = json.loads(uploaded_file.read().decode('utf-8'))
+                            # قراءة الملف
+                            file_content = uploaded_file.read().decode('utf-8')
+                            backup_data = json.loads(file_content)
                             
+                            # عرض المحتويات
                             st.info(f"📊 **محتويات النسخة:**\n"
                                    f"- المعدات: {len(backup_data.get('inventory', {}))} عنصر\n"
                                    f"- الإعارات: {len(backup_data.get('loans', {}))} إعارة\n"
                                    f"- المستخدمين: {len(backup_data.get('users', {}))} مستخدم\n"
                                    f"- تاريخ النسخ: {backup_data.get('backup_date', 'غير محدد')}")
                             
-                            if st.button("✅ استيراد النسخة", type="primary", use_container_width=True):
-                                password = st.text_input("أدخل كلمة السر للتأكيد", type="password")
-                                if password and hash_password(password) == users[st.session_state["username"]]["password"]:
-                                    # استيراد البيانات
-                                    with open('data/inventory.json', 'w', encoding='utf-8') as f:
-                                        json.dump(backup_data.get('inventory', {}), f, ensure_ascii=False, indent=2)
-                                    
-                                    with open('data/loans.json', 'w', encoding='utf-8') as f:
-                                        json.dump(backup_data.get('loans', {}), f, ensure_ascii=False, indent=2)
-                                    
-                                    if 'categories' in backup_data:
-                                        with open('data/categories.json', 'w', encoding='utf-8') as f:
-                                            json.dump(backup_data['categories'], f, ensure_ascii=False, indent=2)
-                                    
-                                    st.success("✅ تم استيراد النسخة بنجاح!")
-                                    st.info("🔄 سيتم تحديث البيانات عند إعادة تحميل الصفحة")
-                                else:
+                            st.divider()
+                            
+                            # طلب كلمة السر أولاً
+                            st.markdown("**التأكيد الأمني:**")
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                confirm = st.checkbox("✅ أنا متأكد من الاستيراد", value=False, key="confirm_import")
+                            
+                            with col2:
+                                password = st.text_input("أدخل كلمة السر", type="password", key="import_password")
+                            
+                            if st.button("✅ استيراد النسخة الآن", type="primary", use_container_width=True):
+                                if not confirm:
+                                    st.error("❌ يجب تأكيد الاستيراد أولاً!")
+                                elif not password:
+                                    st.error("❌ أدخل كلمة السر!")
+                                elif hash_password(password) != users[st.session_state["username"]]["password"]:
                                     st.error("❌ كلمة السر غير صحيحة!")
-                        except:
-                            st.error("❌ الملف غير صحيح! تأكد من أنه نسخة احتياطية صحيحة")
+                                else:
+                                    try:
+                                        import os
+                                        os.makedirs('data', exist_ok=True)
+                                        
+                                        # استيراد البيانات
+                                        with open('data/inventory.json', 'w', encoding='utf-8') as f:
+                                            json.dump(backup_data.get('inventory', {}), f, ensure_ascii=False, indent=2)
+                                        
+                                        with open('data/loans.json', 'w', encoding='utf-8') as f:
+                                            json.dump(backup_data.get('loans', {}), f, ensure_ascii=False, indent=2)
+                                        
+                                        if 'categories' in backup_data and backup_data['categories']:
+                                            with open('data/categories.json', 'w', encoding='utf-8') as f:
+                                                json.dump(backup_data['categories'], f, ensure_ascii=False, indent=2)
+                                        
+                                        st.success("✅ تم استيراد النسخة بنجاح!")
+                                        st.balloons()
+                                        st.info("🔄 **الرجاء:** أعد تحميل الصفحة (اضغط F5) لرؤية البيانات الجديدة")
+                                    except Exception as e:
+                                        st.error(f"❌ خطأ في الاستيراد: {str(e)}")
+                                        st.warning(f"📝 التفاصيل: تأكد من أن الملف صحيح وليس تالفاً")
+                        
+                        except json.JSONDecodeError:
+                            st.error("❌ الملف ليس JSON صحيح!")
+                            st.info("💡 تأكد من أن الملف تم تصديره من هذا النظام")
+                        except Exception as e:
+                            st.error(f"❌ خطأ: {str(e)}")
+                            st.warning("📝 الملف غير صحيح أو تالف")
                 
                 with backup_tab3:
                     st.markdown("#### 📊 معلومات النسخ الاحتياطية")
