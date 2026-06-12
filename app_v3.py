@@ -337,7 +337,7 @@ else:
                 csv_template = template_df.to_csv(index=False, encoding='utf-8-sig')
                 
                 st.download_button(
-                    label="📥 تحميل قالب Excel",
+                    label="📥 تحميل قالب Excel", key="download_template_excel",
                     data=csv_template,
                     file_name="قالب_المعدات.csv",
                     mime="text/csv",
@@ -573,7 +573,7 @@ else:
                 csv_template = template_df.to_csv(index=False, encoding='utf-8-sig')
                 
                 st.download_button(
-                    label="📥 تحميل قالب Excel",
+                    label="📥 تحميل قالب Excel", key="download_template_excel",
                     data=csv_template,
                     file_name="قالب_المعدات.csv",
                     mime="text/csv",
@@ -1018,7 +1018,7 @@ else:
                 # تحميل التقرير
                 csv_data = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button(
-                    label="📥 تحميل التقرير (CSV)",
+                    label="📥 تحميل التقرير (CSV)", key="download_loans_report", key="download_inventory_report",
                     data=csv_data,
                     file_name=f"inventory_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv"
@@ -1080,7 +1080,7 @@ else:
                 
                 csv_data = df.to_csv(index=False, encoding='utf-8-sig')
                 st.download_button(
-                    label="📥 تحميل التقرير (CSV)",
+                    label="📥 تحميل التقرير (CSV)", key="download_loans_report", key="download_inventory_report",
                     data=csv_data,
                     file_name=f"loans_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                     mime="text/csv"
