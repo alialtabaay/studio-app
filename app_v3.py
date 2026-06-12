@@ -657,7 +657,7 @@ else:
                 with col2:
                     employee_name = st.text_input("👤 اسم الساحب")
                 
-                loan_notes = st.text_area("📝 ملاحظات")
+                loan_notes = st.text_area("📝 ملاحظات (اختياري)")
                 
                 st.divider()
                 
@@ -666,9 +666,6 @@ else:
                 
                 if available_items:
                     st.markdown("**اختر المعدات:**")
-                    
-                    # جدول بسيط جداً
-                    items_list = [f"{item_id} - {available_items[item_id]['name']}" for item_id in available_items.keys()]
                     
                     selected_items = st.multiselect(
                         "المعدات",
@@ -683,12 +680,11 @@ else:
                     st.divider()
                     
                     # الحفظ
-                    if st.button("💾 حفظ السحب", use_container_width=True, type="primary"):
+                    if st.button("💾 حفظ والطباعة", use_container_width=True, type="primary"):
                         if not order_name or not employee_name or not selected_items:
                             st.error("❌ الرجاء ملء جميع الحقول واختيار معدات!")
                         else:
-                            receipt_text = f"الأوردر: {order_name}\nالساحب: {employee_name}\n\nالمعدات:\n"
-                            
+                            # حفظ الإعارات
                             for item_id in selected_items:
                                 item = available_items[item_id]
                                 loan_id = f"LOAN-{len(loans)+1:05d}"
@@ -705,23 +701,62 @@ else:
                                 }
                                 
                                 inventory[item_id]['status'] = 'معار'
-                                receipt_text += f"\n{item_id} - {item['name']}"
                             
                             save_loans(loans)
                             save_inventory(inventory)
                             
                             st.success(f"✅ تم حفظ {len(selected_items)} معدة!")
                             
-                            # الإيصال
-                            st.markdown("### 🧾 الإيصال")
-                            st.text(receipt_text)
+                            # نافذة الطباعة
+                            st.divider()
+                            st.markdown("### 🖨️ إيصال الاستلام")
                             
-                            st.download_button(
-                                label="📥 تحميل الإيصال",
-                                data=receipt_text,
-                                file_name=f"receipt_{order_name}.txt",
-                                mime="text/plain"
-                            )
+                            # جدول البيانات
+                            print_data = []
+                            for idx, item_id in enumerate(selected_items, 1):
+                                item = available_items[item_id]
+                                print_data.append({
+                                    "#": idx,
+                                    "المعرف": item_id,
+                                    "الاسم": item['name'],
+                                    "التصنيف": item.get('category', '-')
+                                })
+                            
+                            # عرض البيانات الأساسية
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.write(f"**الأوردر:** {order_name}")
+                                st.write(f"**التاريخ:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+                            with col2:
+                                st.write(f"**الساحب:** {employee_name}")
+                                st.write(f"**العدد:** {len(selected_items)}")
+                            
+                            st.divider()
+                            
+                            # الجدول
+                            st.markdown("**المعدات المستأجرة:**")
+                            df_print = pd.DataFrame(print_data)
+                            st.dataframe(df_print, use_container_width=True, hide_index=True)
+                            
+                            st.divider()
+                            
+                            # الملاحظات
+                            if loan_notes:
+                                st.markdown(f"**ملاحظات:** {loan_notes}")
+                            
+                            st.divider()
+                            
+                            # توقيع
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.write("توقيع الساحب: ___________")
+                            with col2:
+                                st.write("توقيع المستقبل: ___________")
+                            with col3:
+                                st.write("التاريخ: ___________")
+                            
+                            st.info("👈 استخدم Ctrl+P أو Command+P للطباعة")
+                
                 else:
                     st.info("⚠️ لا توجد معدات متاحة")
             else:
