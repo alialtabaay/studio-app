@@ -274,16 +274,16 @@ else:
         col1, col2 = st.columns(2)
         
         with col1:
-            item_id = st.text_input("🆔 معرف المعدة (ID)", key="item_id_input", placeholder="مثال: CAM-001")
-            item_name = st.text_input("📦 اسم المعدة", key="item_name_input", placeholder="اسم المعدة")
+            item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
+            item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
             item_category = st.selectbox("🏷️ التصنيف", categories)
         
         with col2:
             item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
-            item_location = st.text_input("📍 الموقع/المكان", key="item_location_input", placeholder="مثال: الرف الأول")
-            item_notes = st.text_area("📝 ملاحظات", key="item_notes_input", height=100)
+            item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
+            item_notes = st.text_area("📝 ملاحظات", height=100)
         
-        col1, col2, col3 = st.columns([1, 1, 2])
+        col1, col2 = st.columns(2)
         
         with col1:
             save_btn = st.button("💾 حفظ المعدة", use_container_width=True, type="primary")
@@ -309,20 +309,8 @@ else:
                 }
                 save_inventory(inventory)
                 st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}**")
-                
-                # مسح الحقول
-                st.session_state["item_id_input"] = ""
-                st.session_state["item_name_input"] = ""
-                st.session_state["item_location_input"] = ""
-                st.session_state["item_notes_input"] = ""
+                st.info("✨ الحقول تم مسحها تلقائياً! يمكنك إضافة مادة جديدة")
                 st.rerun()
-        
-        if clear_btn:
-            st.session_state["item_id_input"] = ""
-            st.session_state["item_name_input"] = ""
-            st.session_state["item_location_input"] = ""
-            st.session_state["item_notes_input"] = ""
-            st.rerun()
         
         st.divider()
         
