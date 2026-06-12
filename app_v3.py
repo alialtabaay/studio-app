@@ -707,55 +707,99 @@ else:
                             
                             st.success(f"✅ تم حفظ {len(selected_items)} معدة!")
                             
-                            # نافذة الطباعة
+                            # نافذة الطباعة HTML
                             st.divider()
                             st.markdown("### 🖨️ إيصال الاستلام")
                             
-                            # جدول البيانات
-                            print_data = []
+                            # إنشاء جدول HTML
+                            table_html = """
+                            <table style="width:100%; border-collapse:collapse; margin:20px 0;">
+                                <tr style="background-color:#f0f0f0;">
+                                    <th style="border:1px solid #000; padding:10px; text-align:right;">#</th>
+                                    <th style="border:1px solid #000; padding:10px; text-align:right;">المعرف</th>
+                                    <th style="border:1px solid #000; padding:10px; text-align:right;">الاسم</th>
+                                    <th style="border:1px solid #000; padding:10px; text-align:right;">التصنيف</th>
+                                </tr>
+                            """
+                            
                             for idx, item_id in enumerate(selected_items, 1):
                                 item = available_items[item_id]
-                                print_data.append({
-                                    "#": idx,
-                                    "المعرف": item_id,
-                                    "الاسم": item['name'],
-                                    "التصنيف": item.get('category', '-')
-                                })
+                                table_html += f"""
+                                <tr>
+                                    <td style="border:1px solid #000; padding:10px; text-align:right;">{idx}</td>
+                                    <td style="border:1px solid #000; padding:10px; text-align:right;">{item_id}</td>
+                                    <td style="border:1px solid #000; padding:10px; text-align:right;">{item['name']}</td>
+                                    <td style="border:1px solid #000; padding:10px; text-align:right;">{item.get('category', '-')}</td>
+                                </tr>
+                                """
                             
-                            # عرض البيانات الأساسية
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.write(f"**الأوردر:** {order_name}")
-                                st.write(f"**التاريخ:** {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-                            with col2:
-                                st.write(f"**الساحب:** {employee_name}")
-                                st.write(f"**العدد:** {len(selected_items)}")
+                            table_html += "</table>"
                             
-                            st.divider()
+                            # HTML كامل للطباعة
+                            print_html = f"""
+                            <html dir="rtl" style="font-family: Arial, sans-serif;">
+                            <head>
+                                <title>إيصال استلام</title>
+                                <style>
+                                    body {{ margin: 20px; direction: rtl; }}
+                                    .header {{ text-align: center; margin-bottom: 30px; }}
+                                    .title {{ font-size: 24px; font-weight: bold; margin-bottom: 10px; }}
+                                    .info {{ display: flex; justify-content: space-between; margin-bottom: 20px; }}
+                                    .info-item {{ width: 45%; }}
+                                    .notes {{ margin-top: 20px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; }}
+                                    .signatures {{ display: flex; justify-content: space-between; margin-top: 40px; }}
+                                    .signature {{ width: 30%; text-align: center; }}
+                                    .line {{ border-top: 1px solid #000; margin-top: 50px; padding-top: 10px; }}
+                                    @media print {{
+                                        body {{ margin: 0; }}
+                                    }}
+                                </style>
+                            </head>
+                            <body>
+                                <div class="header">
+                                    <div class="title">📋 إيصال استلام معدات</div>
+                                </div>
+                                
+                                <div class="info">
+                                    <div class="info-item">
+                                        <strong>الأوردر:</strong> {order_name}<br>
+                                        <strong>التاريخ:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                                    </div>
+                                    <div class="info-item" style="text-align: left;">
+                                        <strong>الساحب:</strong> {employee_name}<br>
+                                        <strong>العدد:</strong> {len(selected_items)}
+                                    </div>
+                                </div>
+                                
+                                <div><strong>المعدات المستأجرة:</strong></div>
+                                {table_html}
+                                
+                                {'<div class="notes"><strong>ملاحظات:</strong><br>' + loan_notes + '</div>' if loan_notes else ''}
+                                
+                                <div class="signatures">
+                                    <div class="signature">
+                                        <div>توقيع الساحب</div>
+                                        <div class="line"></div>
+                                    </div>
+                                    <div class="signature">
+                                        <div>توقيع المستقبل</div>
+                                        <div class="line"></div>
+                                    </div>
+                                    <div class="signature">
+                                        <div>التاريخ</div>
+                                        <div class="line"></div>
+                                    </div>
+                                </div>
+                                
+                                <script>
+                                    window.print();
+                                </script>
+                            </body>
+                            </html>
+                            """
                             
-                            # الجدول
-                            st.markdown("**المعدات المستأجرة:**")
-                            df_print = pd.DataFrame(print_data)
-                            st.dataframe(df_print, use_container_width=True, hide_index=True)
-                            
-                            st.divider()
-                            
-                            # الملاحظات
-                            if loan_notes:
-                                st.markdown(f"**ملاحظات:** {loan_notes}")
-                            
-                            st.divider()
-                            
-                            # توقيع
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.write("توقيع الساحب: ___________")
-                            with col2:
-                                st.write("توقيع المستقبل: ___________")
-                            with col3:
-                                st.write("التاريخ: ___________")
-                            
-                            st.info("👈 استخدم Ctrl+P أو Command+P للطباعة")
+                            # عرض الـ HTML
+                            st.components.v1.html(print_html, height=800)
                 
                 else:
                     st.info("⚠️ لا توجد معدات متاحة")
