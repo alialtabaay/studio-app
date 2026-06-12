@@ -1464,9 +1464,319 @@ else:
         inventory = load_inventory()
         loans = load_loans()
         
-        report_type = st.radio("نوع التقرير", ["📊 الإحصائيات", "📋 جرد المعدات", "📦 الإعارات"])
+        report_type = st.radio("نوع التقرير", ["📊 الإحصائيات", "📋 جرد المعدات", "📦 الإعارات", "📄 تقرير مفصل الأوردر"])
         
-        if report_type == "📊 الإحصائيات":
+        if report_type == "📄 تقرير مفصل الأوردر":
+            st.divider()
+            st.markdown("### 📄 اختر الأوردر لعرض التقرير المفصل")
+            
+            # الحصول على قائمة الأوردرات الفريدة
+            all_orders = sorted(set([loan['customer'] for loan in loans.values()]))
+            
+            if all_orders:
+                selected_order = st.selectbox(
+                    "اختر الأوردر",
+                    all_orders,
+                    label_visibility="collapsed"
+                )
+                
+                if selected_order:
+                    # الحصول على كل الإعارات للأوردر
+                    order_loans = {k: v for k, v in loans.items() if v['customer'] == selected_order}
+                    
+                    if order_loans:
+                        # فصل المعدات حسب الحالة
+                        active_items = [(k, v) for k, v in order_loans.items() if v.get('status') == 'نشطة']
+                        returned_items = [(k, v) for k, v in order_loans.items() if v.get('status') == 'مرجعة']
+                        
+                        first_loan = list(order_loans.values())[0]
+                        
+                        st.divider()
+                        st.markdown(f"## 📊 تقرير الأوردر: **{selected_order}**")
+                        
+                        # معلومات الأوردر
+                        st.markdown("### 📋 معلومات الأوردر")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("🆔 الأوردر", selected_order)
+                        with col2:
+                            st.metric("👤 الساحب", first_loan['employee'])
+                        with col3:
+                            st.metric("📅 التاريخ", first_loan['date'][:10])
+                        with col4:
+                            st.metric("⏰ موعد الإرجاع", first_loan['return_date'])
+                        
+                        st.divider()
+                        
+                        # المعدات الكاملة
+                        st.markdown("### 📊 المعدات الكاملة (المسحوبة)")
+                        all_data = []
+                        for idx, (loan_id, loan_data) in enumerate(order_loans.items(), 1):
+                            status_emoji = "📦 نشطة" if loan_data.get('status') == 'نشطة' else "✅ مرجعة"
+                            all_data.append({
+                                "#": idx,
+                                "الحالة": status_emoji,
+                                "المعرف": loan_data['item_id'],
+                                "الاسم": loan_data['item_name'],
+                                "التصنيف": loan_data.get('category', '-'),
+                                "الموقع": loan_data.get('location', '-')
+                            })
+                        
+                        df_all = pd.DataFrame(all_data)
+                        st.dataframe(df_all, use_container_width=True, hide_index=True)
+                        st.caption(f"📊 **الإجمالي: {len(order_loans)} معدة**")
+                        
+                        st.divider()
+                        
+                        # المعدات النشطة
+                        if active_items:
+                            st.markdown("### 📦 المعدات المتبقية (النشطة)")
+                            active_data = []
+                            for idx, (loan_id, loan_data) in enumerate(active_items, 1):
+                                active_data.append({
+                                    "#": idx,
+                                    "المعرف": loan_data['item_id'],
+                                    "الاسم": loan_data['item_name'],
+                                    "التصنيف": loan_data.get('category', '-'),
+                                    "الموقع": loan_data.get('location', '-'),
+                                    "رقم الإعارة": loan_id
+                                })
+                            
+                            df_active = pd.DataFrame(active_data)
+                            st.dataframe(df_active, use_container_width=True, hide_index=True)
+                            st.warning(f"⚠️ **{len(active_items)} معدة متبقية**")
+                            
+                            st.divider()
+                        
+                        # المعدات المرجعة
+                        if returned_items:
+                            st.markdown("### ✅ المعدات المرجعة")
+                            returned_data = []
+                            for idx, (loan_id, loan_data) in enumerate(returned_items, 1):
+                                returned_data.append({
+                                    "#": idx,
+                                    "المعرف": loan_data['item_id'],
+                                    "الاسم": loan_data['item_name'],
+                                    "حالة الرجوع": loan_data.get('return_condition', '-'),
+                                    "تاريخ الإرجاع": loan_data.get('actual_return_date', '-'),
+                                    "ملاحظات": (loan_data.get('return_notes', '-')[:20] + "...") if loan_data.get('return_notes') else '-'
+                                })
+                            
+                            df_returned = pd.DataFrame(returned_data)
+                            st.dataframe(df_returned, use_container_width=True, hide_index=True)
+                            
+                            st.divider()
+                        
+                        # الملخص الإحصائي
+                        st.markdown("### 📊 ملخص التقرير")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("📦 إجمالي المعدات", len(order_loans))
+                        with col2:
+                            st.metric("📥 المتبقية", len(active_items))
+                        with col3:
+                            st.metric("✅ المرجعة", len(returned_items))
+                        with col4:
+                            pct = int((len(returned_items) / len(order_loans) * 100)) if order_loans else 0
+                            st.metric("📊 نسبة الإرجاع", f"{pct}%")
+                        
+                        st.divider()
+                        
+                        # الملاحظات
+                        if first_loan.get('notes'):
+                            st.markdown("### 📝 ملاحظات الأوردر")
+                            st.info(f"**ملاحظات:** {first_loan['notes']}")
+                            st.divider()
+                        
+                        # زر الطباعة
+                        if st.button("🖨️ طباعة التقرير المفصل", use_container_width=True, key=f"print_detailed_{selected_order}"):
+                            # HTML للطباعة
+                            print_html = f"""
+                            <html dir="rtl" style="font-family: Arial, sans-serif;">
+                            <head>
+                                <title>تقرير الأوردر - {selected_order}</title>
+                                <style>
+                                    body {{ margin: 20px; direction: rtl; font-size: 13px; }}
+                                    .header {{ text-align: center; margin-bottom: 30px; border-bottom: 3px solid #333; padding-bottom: 20px; }}
+                                    .title {{ font-size: 32px; font-weight: bold; margin-bottom: 5px; color: #333; }}
+                                    .subtitle {{ font-size: 16px; color: #666; }}
+                                    .info-section {{ display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin: 30px 0; }}
+                                    .info-card {{ border: 2px solid #333; padding: 15px; border-radius: 5px; }}
+                                    .info-label {{ font-size: 11px; color: #666; text-transform: uppercase; margin-bottom: 5px; }}
+                                    .info-value {{ font-size: 18px; font-weight: bold; color: #333; }}
+                                    table {{ width: 100%; border-collapse: collapse; margin: 25px 0; }}
+                                    th {{ background-color: #333; color: white; padding: 12px; text-align: right; font-size: 12px; font-weight: bold; }}
+                                    td {{ border: 1px solid #ddd; padding: 10px; text-align: right; font-size: 12px; }}
+                                    tr:nth-child(even) {{ background-color: #f9f9f9; }}
+                                    .section-title {{ font-size: 16px; font-weight: bold; margin: 30px 0 15px 0; border-left: 4px solid #333; padding-left: 10px; color: #333; }}
+                                    .summary-section {{ margin: 30px 0; padding: 20px; background-color: #f0f0f0; border-radius: 5px; }}
+                                    .summary-grid {{ display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-top: 15px; }}
+                                    .summary-item {{ text-align: center; padding: 15px; background-color: white; border-radius: 5px; border: 1px solid #ddd; }}
+                                    .summary-number {{ font-size: 28px; font-weight: bold; color: #333; }}
+                                    .summary-label {{ font-size: 11px; color: #666; margin-top: 5px; }}
+                                    .notes-section {{ margin: 30px 0; padding: 15px; background-color: #fffacd; border-left: 4px solid #ffc700; border-radius: 3px; }}
+                                    .footer {{ margin-top: 50px; text-align: center; border-top: 1px solid #ddd; padding-top: 15px; color: #666; font-size: 11px; }}
+                                    @media print {{ body {{ margin: 0; }} }}
+                                </style>
+                            </head>
+                            <body>
+                                <div class="header">
+                                    <div class="title">📊 تقرير الأوردر المفصل</div>
+                                    <div class="subtitle">تقرير شامل لجميع المعدات والإعارات</div>
+                                </div>
+                                
+                                <div class="info-section">
+                                    <div class="info-card">
+                                        <div class="info-label">🆔 رقم الأوردر</div>
+                                        <div class="info-value">{selected_order}</div>
+                                    </div>
+                                    <div class="info-card">
+                                        <div class="info-label">👤 الشخص الساحب</div>
+                                        <div class="info-value">{first_loan['employee']}</div>
+                                    </div>
+                                    <div class="info-card">
+                                        <div class="info-label">📅 تاريخ السحب</div>
+                                        <div class="info-value">{first_loan['date'][:10]}</div>
+                                    </div>
+                                    <div class="info-card">
+                                        <div class="info-label">⏰ موعد الإرجاع</div>
+                                        <div class="info-value">{first_loan['return_date']}</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="section-title">📊 المعدات الكاملة (المسحوبة)</div>
+                                <table>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الحالة</th>
+                                        <th>المعرف</th>
+                                        <th>الاسم</th>
+                                        <th>التصنيف</th>
+                                        <th>الموقع</th>
+                                    </tr>
+                            """
+                            
+                            for idx, (loan_id, loan_data) in enumerate(order_loans.items(), 1):
+                                status = "📦 نشطة" if loan_data.get('status') == 'نشطة' else "✅ مرجعة"
+                                print_html += f"""
+                                    <tr>
+                                        <td>{idx}</td>
+                                        <td>{status}</td>
+                                        <td>{loan_data['item_id']}</td>
+                                        <td>{loan_data['item_name']}</td>
+                                        <td>{loan_data.get('category', '-')}</td>
+                                        <td>{loan_data.get('location', '-')}</td>
+                                    </tr>
+                                """
+                            
+                            print_html += "</table>"
+                            
+                            # المعدات النشطة
+                            if active_items:
+                                print_html += """
+                                <div class="section-title">📦 المعدات المتبقية (النشطة)</div>
+                                <table>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>المعرف</th>
+                                        <th>الاسم</th>
+                                        <th>التصنيف</th>
+                                        <th>الموقع</th>
+                                    </tr>
+                                """
+                                for idx, (loan_id, loan_data) in enumerate(active_items, 1):
+                                    print_html += f"""
+                                    <tr>
+                                        <td>{idx}</td>
+                                        <td>{loan_data['item_id']}</td>
+                                        <td>{loan_data['item_name']}</td>
+                                        <td>{loan_data.get('category', '-')}</td>
+                                        <td>{loan_data.get('location', '-')}</td>
+                                    </tr>
+                                    """
+                                print_html += "</table>"
+                            
+                            # المعدات المرجعة
+                            if returned_items:
+                                print_html += """
+                                <div class="section-title">✅ المعدات المرجعة</div>
+                                <table>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>المعرف</th>
+                                        <th>الاسم</th>
+                                        <th>حالة الرجوع</th>
+                                        <th>تاريخ الإرجاع</th>
+                                    </tr>
+                                """
+                                for idx, (loan_id, loan_data) in enumerate(returned_items, 1):
+                                    print_html += f"""
+                                    <tr>
+                                        <td>{idx}</td>
+                                        <td>{loan_data['item_id']}</td>
+                                        <td>{loan_data['item_name']}</td>
+                                        <td>{loan_data.get('return_condition', '-')}</td>
+                                        <td>{loan_data.get('actual_return_date', '-')}</td>
+                                    </tr>
+                                    """
+                                print_html += "</table>"
+                            
+                            # الملخص
+                            pct = int((len(returned_items) / len(order_loans) * 100)) if order_loans else 0
+                            print_html += f"""
+                                <div class="summary-section">
+                                    <div class="section-title" style="margin: 0 0 15px 0;">📊 ملخص التقرير الإحصائي</div>
+                                    <div class="summary-grid">
+                                        <div class="summary-item">
+                                            <div class="summary-number">{len(order_loans)}</div>
+                                            <div class="summary-label">إجمالي المعدات</div>
+                                        </div>
+                                        <div class="summary-item">
+                                            <div class="summary-number">{len(active_items)}</div>
+                                            <div class="summary-label">المعدات المتبقية</div>
+                                        </div>
+                                        <div class="summary-item">
+                                            <div class="summary-number">{len(returned_items)}</div>
+                                            <div class="summary-label">المعدات المرجعة</div>
+                                        </div>
+                                        <div class="summary-item">
+                                            <div class="summary-number">{pct}%</div>
+                                            <div class="summary-label">نسبة الإرجاع</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            """
+                            
+                            # الملاحظات
+                            if first_loan.get('notes'):
+                                print_html += f"""
+                                <div class="notes-section">
+                                    <strong>📝 ملاحظات الأوردر:</strong><br>
+                                    {first_loan['notes']}
+                                </div>
+                                """
+                            
+                            # التذييل
+                            print_html += f"""
+                                <div class="footer">
+                                    <p><strong>تم إنشاء التقرير:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                                    <p>نظام إدارة المعدات والإعارات - نسخة متقدمة</p>
+                                </div>
+                                
+                                <script>
+                                    window.print();
+                                </script>
+                            </body>
+                            </html>
+                            """
+                            
+                            st.components.v1.html(print_html, height=1200)
+                    else:
+                        st.info("لا توجد إعارات لهذا الأوردر")
+            else:
+                st.info("لا توجد أوردرات بعد")
+        
+        elif report_type == "📊 الإحصائيات":
             col1, col2 = st.columns(2)
             
             with col1:
