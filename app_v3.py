@@ -994,20 +994,61 @@ else:
             active_loans = {k: v for k, v in loans.items() if v.get('status') == 'نشطة'}
             
             if active_loans:
+                # تجميع حسب الأوردر
+                orders = {}
                 for loan_id, data in active_loans.items():
+                    order_name = data['customer']
+                    if order_name not in orders:
+                        orders[order_name] = []
+                    orders[order_name].append((loan_id, data))
+                
+                # عرض الأوردرات
+                for order_name in sorted(orders.keys()):
+                    items = orders[order_name]
+                    first_item = items[0][1]
+                    
+                    # حساب أيام الإرجاع
+                    days_left = (datetime.strptime(first_item['return_date'], '%Y-%m-%d').date() - datetime.now().date()).days
+                    status_color = "🔴" if days_left < 0 else "🟡" if days_left < 3 else "🟢"
+                    
                     with st.container():
-                        col1, col2 = st.columns([3, 1])
-                        
+                        # رأس الأوردر
+                        col1, col2, col3 = st.columns([2, 1, 1])
                         with col1:
-                            st.write(f"**{loan_id}** - {data['customer']}")
-                            st.caption(f"📦 {data['item_name']} | 👤 {data['employee']} | 📅 {data['return_date']}")
-                        
+                            st.markdown(f"### {status_color} {order_name}")
                         with col2:
-                            days_left = (datetime.strptime(data['return_date'], '%Y-%m-%d').date() - datetime.now().date()).days
+                            st.write(f"👤 **{first_item['employee']}**")
+                        with col3:
                             if days_left < 0:
-                                st.error(f"⚠️ {abs(days_left)} يوم تأخير")
+                                st.error(f"⚠️ تأخير {abs(days_left)} يوم")
                             else:
                                 st.info(f"📅 {days_left} أيام")
+                        
+                        # تفاصيل الأوردر
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.caption(f"**التاريخ:** {first_item['date']}")
+                        with col2:
+                            st.caption(f"**الإرجاع المتوقع:** {first_item['return_date']}")
+                        with col3:
+                            st.caption(f"**عدد المعدات:** {len(items)}")
+                        with col4:
+                            if first_item.get('notes'):
+                                st.caption(f"**ملاحظات:** {first_item['notes'][:30]}...")
+                        
+                        # جدول المعدات
+                        st.markdown("**المعدات:**")
+                        table_data = []
+                        for idx, (loan_id, loan_data) in enumerate(items, 1):
+                            table_data.append({
+                                "#": idx,
+                                "المعرف": loan_data['item_id'],
+                                "الاسم": loan_data['item_name'],
+                                "رقم الإعارة": loan_id
+                            })
+                        
+                        df = pd.DataFrame(table_data)
+                        st.dataframe(df, use_container_width=True, hide_index=True)
                         
                         st.divider()
             else:
