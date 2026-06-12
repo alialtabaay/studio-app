@@ -807,51 +807,184 @@ else:
                 st.info("📭 لا توجد معدات")
         
         with tab_return:
-            st.markdown("### 📥 إرجاع معدة")
+            st.markdown("### 📥 إرجاع المعدات")
             
+            # البحث عن الأوردر
             active_loans = {k: v for k, v in loans.items() if v.get('status') == 'نشطة'}
             
             if active_loans:
-                loan_id = st.selectbox("اختر الإعارة", list(active_loans.keys()), 
-                                    format_func=lambda x: f"{x} - {active_loans[x]['customer']}")
+                # الحصول على أسماء الأوردرات الفريدة
+                order_names = sorted(set([loan['customer'] for loan in active_loans.values()]))
                 
-                if loan_id:
-                    loan_data = active_loans[loan_id]
-                    st.info(f"📦 المعدة: **{loan_data['item_name']}** | 👤 العميل: **{loan_data['customer']}**")
+                st.markdown("#### البحث عن الأوردر")
+                selected_order = st.selectbox(
+                    "اختر الأوردر",
+                    order_names,
+                    label_visibility="collapsed"
+                )
+                
+                if selected_order:
+                    # الحصول على كل المعدات لهذا الأوردر
+                    order_items = {}
+                    for loan_id, loan in active_loans.items():
+                        if loan['customer'] == selected_order:
+                            order_items[loan_id] = loan
                     
-                    col1, col2 = st.columns(2)
+                    st.divider()
+                    st.markdown(f"#### المعدات المستأجرة من أوردر: **{selected_order}**")
                     
-                    with col1:
-                        return_type = st.radio("نوع الإرجاع", ["🔄 إرجاع كامل", "📦 إرجاع جزئي"])
-                    
-                    with col2:
-                        if return_type == "📦 إرجاع جزئي":
-                            partial_quantity = st.number_input("عدد الوحدات المرجعة", min_value=1, value=1, step=1)
+                    if order_items:
+                        # عرض المعدات
+                        st.markdown("**المعدات النشطة:**")
+                        items_display = {}
+                        for loan_id, loan in order_items.items():
+                            display_text = f"{loan['item_name']} ({loan['item_id']})"
+                            items_display[loan_id] = display_text
+                        
+                        # اختيار المعدات للإرجاع (جزئي)
+                        selected_loans = st.multiselect(
+                            "اختر المعدات للإرجاع",
+                            list(order_items.keys()),
+                            format_func=lambda x: f"{order_items[x]['item_name']} ({order_items[x]['item_id']})",
+                            label_visibility="collapsed"
+                        )
+                        
+                        if selected_loans:
+                            st.success(f"✅ اخترت {len(selected_loans)} معدة للإرجاع")
+                            
+                            st.divider()
+                            
+                            # حالة المعدات
+                            st.markdown("#### حالة المعدات عند الإرجاع")
+                            
+                            return_condition = st.selectbox(
+                                "حالة المعدات",
+                                ["ممتازة", "جيدة", "بها أضرار", "غير صالحة"]
+                            )
+                            
+                            return_notes = st.text_area("ملاحظات الإرجاع (اختياري)")
+                            
+                            st.divider()
+                            
+                            # الحفظ
+                            if st.button("✅ تأكيد الإرجاع", use_container_width=True, type="primary"):
+                                returned_items = []
+                                
+                                for loan_id in selected_loans:
+                                    loan = order_items[loan_id]
+                                    item_id = loan['item_id']
+                                    
+                                    # تحديث حالة الإعارة
+                                    loans[loan_id]['status'] = 'مرجعة'
+                                    loans[loan_id]['return_condition'] = return_condition
+                                    loans[loan_id]['return_notes'] = return_notes
+                                    loans[loan_id]['actual_return_date'] = datetime.now().strftime("%Y-%m-%d")
+                                    
+                                    # تحديث حالة المعدة
+                                    inventory[item_id]['status'] = 'متوفر'
+                                    
+                                    returned_items.append({
+                                        'id': item_id,
+                                        'name': loan['item_name'],
+                                        'loan_id': loan_id
+                                    })
+                                
+                                save_loans(loans)
+                                save_inventory(inventory)
+                                
+                                st.success(f"✅ تم إرجاع {len(selected_loans)} معدة بنجاح!")
+                                
+                                # إيصال الإرجاع
+                                st.divider()
+                                st.markdown("### 🧾 إيصال الإرجاع")
+                                
+                                # HTML للطباعة
+                                table_html = """
+                                <table style="width:100%; border-collapse:collapse; margin:20px 0;">
+                                    <tr style="background-color:#f0f0f0;">
+                                        <th style="border:1px solid #000; padding:10px; text-align:right;">#</th>
+                                        <th style="border:1px solid #000; padding:10px; text-align:right;">المعرف</th>
+                                        <th style="border:1px solid #000; padding:10px; text-align:right;">الاسم</th>
+                                        <th style="border:1px solid #000; padding:10px; text-align:right;">رقم الإعارة</th>
+                                    </tr>
+                                """
+                                
+                                for idx, item in enumerate(returned_items, 1):
+                                    table_html += f"""
+                                    <tr>
+                                        <td style="border:1px solid #000; padding:10px; text-align:right;">{idx}</td>
+                                        <td style="border:1px solid #000; padding:10px; text-align:right;">{item['id']}</td>
+                                        <td style="border:1px solid #000; padding:10px; text-align:right;">{item['name']}</td>
+                                        <td style="border:1px solid #000; padding:10px; text-align:right;">{item['loan_id']}</td>
+                                    </tr>
+                                    """
+                                
+                                table_html += "</table>"
+                                
+                                return_html = f"""
+                                <html dir="rtl" style="font-family: Arial, sans-serif;">
+                                <head>
+                                    <title>إيصال إرجاع</title>
+                                    <style>
+                                        body {{ margin: 20px; direction: rtl; }}
+                                        .header {{ text-align: center; margin-bottom: 30px; }}
+                                        .title {{ font-size: 24px; font-weight: bold; margin-bottom: 10px; }}
+                                        .info {{ display: flex; justify-content: space-between; margin-bottom: 20px; }}
+                                        .info-item {{ width: 45%; }}
+                                        .notes {{ margin-top: 20px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; }}
+                                        .signatures {{ display: flex; justify-content: space-between; margin-top: 40px; }}
+                                        .signature {{ width: 30%; text-align: center; }}
+                                        .line {{ border-top: 1px solid #000; margin-top: 50px; padding-top: 10px; }}
+                                    </style>
+                                </head>
+                                <body>
+                                    <div class="header">
+                                        <div class="title">📋 إيصال إرجاع معدات</div>
+                                    </div>
+                                    
+                                    <div class="info">
+                                        <div class="info-item">
+                                            <strong>الأوردر:</strong> {selected_order}<br>
+                                            <strong>التاريخ:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}
+                                        </div>
+                                        <div class="info-item" style="text-align: left;">
+                                            <strong>عدد المعدات:</strong> {len(selected_loans)}<br>
+                                            <strong>الحالة:</strong> {return_condition}
+                                        </div>
+                                    </div>
+                                    
+                                    <div><strong>المعدات المرجعة:</strong></div>
+                                    {table_html}
+                                    
+                                    {'<div class="notes"><strong>ملاحظات:</strong><br>' + return_notes + '</div>' if return_notes else ''}
+                                    
+                                    <div class="signatures">
+                                        <div class="signature">
+                                            <div>توقيع المرجع</div>
+                                            <div class="line"></div>
+                                        </div>
+                                        <div class="signature">
+                                            <div>توقيع المستقبل</div>
+                                            <div class="line"></div>
+                                        </div>
+                                        <div class="signature">
+                                            <div>التاريخ</div>
+                                            <div class="line"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <script>
+                                        window.print();
+                                    </script>
+                                </body>
+                                </html>
+                                """
+                                
+                                st.components.v1.html(return_html, height=800)
                         else:
-                            partial_quantity = 1
-                    
-                    return_condition = st.selectbox("حالة المعدة عند الإرجاع", ["ممتازة", "جيدة", "بها أضرار", "غير صالحة"])
-                    return_notes = st.text_area("ملاحظات الإرجاع")
-                    
-                    if st.button("✅ تأكيد الإرجاع", use_container_width=True, type="primary"):
-                        item_id = loan_data['item_id']
-                        
-                        if return_type == "🔄 إرجاع كامل":
-                            loans[loan_id]['status'] = 'مرجعة'
-                            inventory[item_id]['status'] = 'متوفر'
-                            st.success("✅ تم تسجيل الإرجاع الكامل!")
-                        else:
-                            loans[loan_id]['status'] = 'جزئية'
-                            # في الإرجاع الجزئي، المعدة تبقى معار
-                            st.success(f"✅ تم تسجيل إرجاع {int(partial_quantity)} وحدة!")
-                        
-                        loans[loan_id]['return_condition'] = return_condition
-                        loans[loan_id]['return_notes'] = return_notes
-                        loans[loan_id]['actual_return_date'] = datetime.now().strftime("%Y-%m-%d")
-                        save_loans(loans)
-                        save_inventory(inventory)
-                        
-                        st.rerun()
+                            st.info("اختر معدة واحدة على الأقل")
+                    else:
+                        st.info("لا توجد معدات مستأجرة لهذا الأوردر")
             else:
                 st.info("📭 لا توجد إعارات نشطة")
         
