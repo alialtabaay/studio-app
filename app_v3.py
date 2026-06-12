@@ -662,29 +662,32 @@ else:
                         employee = st.text_input("الموظف المستقبل")
                     
                     with col2:
+                        quantity = st.number_input("🔢 الكمية", min_value=1, value=1, step=1)
                         return_date = st.date_input("تاريخ الإرجاع المتوقع", 
                                                 value=datetime.now().date() + timedelta(days=7))
                         loan_notes = st.text_area("ملاحظات الإعارة")
                     
                     if st.button("✅ تأكيد السحب", use_container_width=True, type="primary"):
                         if customer and employee:
-                            loan_id = f"LOAN-{len(loans)+1:05d}"
-                            loans[loan_id] = {
-                                "item_id": item_id,
-                                "item_name": inventory[item_id]['name'],
-                                "customer": customer,
-                                "employee": employee,
-                                "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                "return_date": return_date.strftime("%Y-%m-%d"),
-                                "notes": loan_notes,
-                                "status": "نشطة"
-                            }
+                            for i in range(int(quantity)):
+                                loan_id = f"LOAN-{len(loans)+1+i:05d}"
+                                loans[loan_id] = {
+                                    "item_id": item_id,
+                                    "item_name": inventory[item_id]['name'],
+                                    "customer": customer,
+                                    "employee": employee,
+                                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                    "return_date": return_date.strftime("%Y-%m-%d"),
+                                    "quantity": 1,
+                                    "notes": loan_notes,
+                                    "status": "نشطة"
+                                }
                             save_loans(loans)
                             
                             inventory[item_id]['status'] = 'معار'
                             save_inventory(inventory)
                             
-                            st.success(f"✅ تم تسجيل الإعارة! الرقم: **{loan_id}**")
+                            st.success(f"✅ تم تسجيل {int(quantity)} إعارة(إعارات)!")
                             st.rerun()
                         else:
                             st.error("❌ يرجى ملء جميع الحقول!")
@@ -1054,4 +1057,3 @@ else:
 
 st.markdown("---")
 st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)
-
