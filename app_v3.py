@@ -1985,7 +1985,7 @@ else:
         st.markdown("## ⚙️ الإعدادات")
         
         if st.session_state["role"] == "مدير":
-            tab_users, tab_categories, tab_backup = st.tabs(["👥 الحسابات", "🏷️ التصنيفات", "💾 النسخ الاحتياطي"])
+            tab_users, tab_categories, tab_backup, tab_delete = st.tabs(["👥 الحسابات", "🏷️ التصنيفات", "💾 النسخ الاحتياطي", "🗑️ حذف البيانات"])
             
             with tab_users:
                 st.markdown("### إنشاء حساب جديد")
@@ -2187,6 +2187,100 @@ else:
                     
                     st.markdown("**⏰ آخر تحديث:** الآن")
                     st.markdown(f"**📅 التاريخ الحالي:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                with tab_delete:
+                    st.markdown("### 🗑️ حذف البيانات")
+                    st.danger("⚠️ **تحذير خطير!** هذا الإجراء لا يمكن التراجع عنه!")
+                    
+                    st.info("💡 **تأكد من:**\n- أخذت نسخة احتياطية\n- أنت متأكد من الحذف\n- لا توجد بيانات مهمة بتحتاجها")
+                    
+                    delete_tab1, delete_tab2, delete_tab3 = st.tabs(["🗑️ حذف انتقائي", "💥 حذف الكل", "❌ لا تحذف"])
+                    
+                    with delete_tab1:
+                        st.markdown("#### 🗑️ حذف بيانات محددة")
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.markdown("**اختر البيانات للحذف:**")
+                            delete_inventory = st.checkbox("🗑️ حذف المعدات فقط", value=False)
+                            delete_loans = st.checkbox("🗑️ حذف الإعارات فقط", value=False)
+                            delete_categories = st.checkbox("🗑️ حذف التصنيفات فقط", value=False)
+                        
+                        with col2:
+                            if delete_inventory or delete_loans or delete_categories:
+                                st.warning("⚠️ سيتم حذف البيانات المختارة!")
+                                
+                                if st.button("⚠️ أؤكد الحذف الانتقائي", use_container_width=True, type="secondary"):
+                                    password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key="delete_partial_password")
+                                    
+                                    if password and hash_password(password) == users[st.session_state["username"]]["password"]:
+                                        if delete_inventory:
+                                            with open('data/inventory.json', 'w', encoding='utf-8') as f:
+                                                json.dump({}, f, ensure_ascii=False, indent=2)
+                                            st.success("✅ تم حذف المعدات!")
+                                        
+                                        if delete_loans:
+                                            with open('data/loans.json', 'w', encoding='utf-8') as f:
+                                                json.dump({}, f, ensure_ascii=False, indent=2)
+                                            st.success("✅ تم حذف الإعارات!")
+                                        
+                                        if delete_categories:
+                                            with open('data/categories.json', 'w', encoding='utf-8') as f:
+                                                json.dump(["كاميرا", "عدسات", "إضاءة", "صوتيات"], f, ensure_ascii=False, indent=2)
+                                            st.success("✅ تم حذف التصنيفات! (أُعيدت الافتراضية)")
+                                        
+                                        st.info("🔄 حدّث الصفحة لرؤية التغييرات")
+                                    elif password:
+                                        st.error("❌ كلمة السر غير صحيحة!")
+                            else:
+                                st.info("اختر على الأقل بيان واحد للحذف")
+                    
+                    with delete_tab2:
+                        st.markdown("#### 💥 حذف كل البيانات")
+                        st.error("🔴 **خطر جداً!** سيحذف:")
+                        st.write("""
+                        - ❌ كل المعدات
+                        - ❌ كل الإعارات
+                        - ❌ كل التصنيفات
+                        - ✅ لا يحذف الحسابات
+                        """)
+                        
+                        st.divider()
+                        
+                        col1, col2 = st.columns([1, 1])
+                        
+                        with col1:
+                            if st.button("💥 حذف كل البيانات!", use_container_width=True, type="primary"):
+                                password = st.text_input("أدخل كلمة السر للتأكيد الأخير", type="password", key="delete_all_password")
+                                
+                                if password and hash_password(password) == users[st.session_state["username"]]["password"]:
+                                    # حذف كل شيء
+                                    with open('data/inventory.json', 'w', encoding='utf-8') as f:
+                                        json.dump({}, f, ensure_ascii=False, indent=2)
+                                    
+                                    with open('data/loans.json', 'w', encoding='utf-8') as f:
+                                        json.dump({}, f, ensure_ascii=False, indent=2)
+                                    
+                                    with open('data/categories.json', 'w', encoding='utf-8') as f:
+                                        json.dump(["كاميرا", "عدسات", "إضاءة", "صوتيات"], f, ensure_ascii=False, indent=2)
+                                    
+                                    st.success("💥 تم حذف كل البيانات بنجاح!")
+                                    st.balloons()
+                                    st.info("🔄 النظام نظيف تماماً! حدّث الصفحة للبدء من جديد")
+                                elif password:
+                                    st.error("❌ كلمة السر غير صحيحة!")
+                        
+                        with col2:
+                            st.markdown("**التأكيد:**")
+                            confirm = st.checkbox("✅ أنا متأكد 100% من الحذف", value=False)
+                            if not confirm:
+                                st.warning("⚠️ يجب تأكيد الحذف!")
+                    
+                    with delete_tab3:
+                        st.markdown("#### ❌ لا تحذف")
+                        st.success("✅ الخيار الآمن!")
+                        st.info("👈 اذهب للتبويبات الأخرى للعمل بشكل آمن")
         else:
             st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
 
