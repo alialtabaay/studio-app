@@ -175,7 +175,7 @@ else:
             st.markdown("### 📅 الإعارات المنتهية صلاحيتها")
             today = datetime.now().date()
             overdue = {k: v for k, v in loans.items() 
-                      if v.get('status') == 'نشطة' and datetime.strptime(v.get('return_date', '2099-12-31'), '%Y-%m-%d').date() < today}
+                    if v.get('status') == 'نشطة' and datetime.strptime(v.get('return_date', '2099-12-31'), '%Y-%m-%d').date() < today}
             
             if overdue:
                 for loan_id, data in overdue.items():
@@ -271,7 +271,9 @@ else:
         
         # تبويبات فرعية
         tab_add_manual, tab_add_excel, tab_edit = st.tabs(["➕ إضافة يدوي", "📊 رفع من Excel", "✏️ تعديل المعدات"])
-with tab_add_manual:
+        
+        # ============ TAB: إضافة يدوي ============
+        with tab_add_manual:
             st.markdown("### ➕ إضافة معدة جديدة")
             
             with st.form("add_item_form"):
@@ -548,13 +550,13 @@ with tab_add_manual:
                     
                     with col1:
                         item_id = st.selectbox("اختر المعدة", list(available_items.keys()), 
-                                              format_func=lambda x: f"{available_items[x]['name']} ({x})")
+                                            format_func=lambda x: f"{available_items[x]['name']} ({x})")
                         customer = st.text_input("اسم العميل/الأوردر")
                         employee = st.text_input("الموظف المستقبل")
                     
                     with col2:
                         return_date = st.date_input("تاريخ الإرجاع المتوقع", 
-                                                   value=datetime.now().date() + timedelta(days=7))
+                                                value=datetime.now().date() + timedelta(days=7))
                         loan_notes = st.text_area("ملاحظات الإعارة")
                     
                     if st.button("✅ تأكيد السحب", use_container_width=True, type="primary"):
@@ -591,7 +593,7 @@ with tab_add_manual:
             
             if active_loans:
                 loan_id = st.selectbox("اختر الإعارة", list(active_loans.keys()), 
-                                      format_func=lambda x: f"{x} - {active_loans[x]['customer']}")
+                                    format_func=lambda x: f"{x} - {active_loans[x]['customer']}")
                 
                 if loan_id:
                     loan_data = active_loans[loan_id]
@@ -944,5 +946,4 @@ with tab_add_manual:
             st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
 
 st.markdown("---")
-
 st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)
