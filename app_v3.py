@@ -498,8 +498,14 @@ else:
                             new_status = st.selectbox("📊 الحالة", 
                                                       ["متوفر", "معار", "صيانة"],
                                                       index=["متوفر", "معار", "صيانة"].index(item.get('status', 'متوفر')))
-                            new_category = st.selectbox("🏷️ التصنيف", categories, 
-                                                       index=categories.index(item.get('category', categories[0])))
+                            
+                            # التصنيف - معالجة الخطأ
+                            default_category = item.get('category', categories[0])
+                            try:
+                                cat_index = categories.index(default_category)
+                            except:
+                                cat_index = 0
+                            new_category = st.selectbox("🏷️ التصنيف", categories, index=cat_index)
                         
                         new_notes = st.text_area("📝 ملاحظات", value=item.get('notes', ''), height=80)
                         
@@ -1047,4 +1053,4 @@ else:
             st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
 
 st.markdown("---")
-st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)-
