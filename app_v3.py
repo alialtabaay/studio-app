@@ -271,17 +271,27 @@ else:
         
         st.markdown("### ➕ إضافة معدة جديدة")
         
+        # Initialize session state for form fields
+        if "item_id" not in st.session_state:
+            st.session_state.item_id = ""
+        if "item_name" not in st.session_state:
+            st.session_state.item_name = ""
+        if "item_location" not in st.session_state:
+            st.session_state.item_location = ""
+        if "item_notes" not in st.session_state:
+            st.session_state.item_notes = ""
+        
         col1, col2 = st.columns(2)
         
         with col1:
-            item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
-            item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
+            item_id = st.text_input("🆔 معرف المعدة (ID)", value=st.session_state.item_id, placeholder="مثال: CAM-001")
+            item_name = st.text_input("📦 اسم المعدة", value=st.session_state.item_name, placeholder="اسم المعدة")
             item_category = st.selectbox("🏷️ التصنيف", categories)
         
         with col2:
             item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
-            item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
-            item_notes = st.text_area("📝 ملاحظات", height=100)
+            item_location = st.text_input("📍 الموقع/المكان", value=st.session_state.item_location, placeholder="مثال: الرف الأول")
+            item_notes = st.text_area("📝 ملاحظات", value=st.session_state.item_notes, height=100)
         
         col1, col2 = st.columns(2)
         
@@ -291,13 +301,16 @@ else:
         with col2:
             clear_btn = st.button("🔄 مسح الحقول", use_container_width=True)
         
+        # عنصر لعرض الرسائل
+        message_placeholder = st.empty()
+        
         if save_btn:
             if not item_id:
-                st.error("❌ يجب إدخال معرف المعدة!")
+                message_placeholder.error("❌ يجب إدخال معرف المعدة!")
             elif not item_name:
-                st.error("❌ يجب إدخال اسم المعدة!")
+                message_placeholder.error("❌ يجب إدخال اسم المعدة!")
             elif item_id in inventory:
-                st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
+                message_placeholder.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
             else:
                 inventory[item_id] = {
                     "name": item_name,
@@ -308,9 +321,24 @@ else:
                     "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
                 }
                 save_inventory(inventory)
-                st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}**")
-                st.info("✨ الحقول تم مسحها تلقائياً! يمكنك إضافة مادة جديدة")
-                st.rerun()
+                
+                # رسالة النجاح
+                message_placeholder.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}** بنجاح!")
+                
+                # مسح الحقول
+                st.session_state.item_id = ""
+                st.session_state.item_name = ""
+                st.session_state.item_location = ""
+                st.session_state.item_notes = ""
+                
+                st.info("✨ تم مسح الحقول! يمكنك إضافة مادة جديدة")
+        
+        if clear_btn:
+            st.session_state.item_id = ""
+            st.session_state.item_name = ""
+            st.session_state.item_location = ""
+            st.session_state.item_notes = ""
+            message_placeholder.info("🔄 تم مسح جميع الحقول")
         
         st.divider()
         
@@ -346,9 +374,9 @@ else:
             
             # إعداد البيانات للجدول
             table_data = []
-            for item_id, item in inventory.items():
+            for item_id_loop, item in inventory.items():
                 # تطبيق الفلاتر
-                if search and search.lower() not in item_id.lower() and search.lower() not in item['name'].lower():
+                if search and search.lower() not in item_id_loop.lower() and search.lower() not in item['name'].lower():
                     continue
                 if filter_status != "الكل" and item['status'] != filter_status:
                     continue
@@ -358,7 +386,7 @@ else:
                 status_emoji = "🟢" if item['status'] == 'متوفر' else "🟡" if item['status'] == 'معار' else "🔴"
                 
                 table_data.append({
-                    "🆔 المعرف": item_id,
+                    "🆔 المعرف": item_id_loop,
                     "📦 الاسم": item['name'],
                     "🏷️ التصنيف": item.get('category', '-'),
                     "📍 الموقع": item.get('location', '-'),
@@ -389,18 +417,20 @@ else:
                 with col2:
                     password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key="delete_password")
                 
+                delete_msg = st.empty()
+                
                 if st.button("🗑️ حذف المعدة", use_container_width=True, type="secondary"):
                     if password and hash_password(password) == users[st.session_state["username"]]["password"]:
                         if item_to_delete:
                             item_name = inventory[item_to_delete]['name']
                             del inventory[item_to_delete]
                             save_inventory(inventory)
-                            st.success(f"✅ تم حذف المعدة: **{item_name}**")
+                            delete_msg.success(f"✅ تم حذف المعدة: **{item_name}** بنجاح!")
                             st.rerun()
                     elif not password:
-                        st.error("❌ يجب إدخال كلمة السر!")
+                        delete_msg.error("❌ يجب إدخال كلمة السر!")
                     else:
-                        st.error("❌ كلمة السر غير صحيحة!")
+                        delete_msg.error("❌ كلمة السر غير صحيحة!")
             else:
                 st.info("❌ لم يتم العثور على معدات تطابق الفلاتر")
         else:
