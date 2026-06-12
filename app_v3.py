@@ -269,46 +269,131 @@ else:
         inventory = load_inventory()
         categories = load_categories()
         
-        st.markdown("### ➕ إضافة معدة جديدة")
+        # تبويبات فرعية
+        tab_add_manual, tab_add_excel = st.tabs(["➕ إضافة يدوي", "📊 رفع من Excel"])
         
-        with st.form("add_item_form"):
-            col1, col2 = st.columns(2)
+        # ============ TAB: إضافة يدوي ============
+        with tab_add_manual:
+            st.markdown("### ➕ إضافة معدة جديدة")
             
-            with col1:
-                item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
-                item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
-                item_category = st.selectbox("🏷️ التصنيف", categories)
+            with st.form("add_item_form"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    item_id = st.text_input("🆔 معرف المعدة (ID)", placeholder="مثال: CAM-001")
+                    item_name = st.text_input("📦 اسم المعدة", placeholder="اسم المعدة")
+                    item_category = st.selectbox("🏷️ التصنيف", categories)
+                
+                with col2:
+                    item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
+                    item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
+                    item_notes = st.text_area("📝 ملاحظات", height=100)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    submit_btn = st.form_submit_button("💾 حفظ المعدة", use_container_width=True, type="primary")
+                with col2:
+                    reset_btn = st.form_submit_button("🔄 مسح الحقول", use_container_width=True)
+                
+                if submit_btn:
+                    if not item_id:
+                        st.error("❌ يجب إدخال معرف المعدة!")
+                    elif not item_name:
+                        st.error("❌ يجب إدخال اسم المعدة!")
+                    elif item_id in inventory:
+                        st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
+                    else:
+                        inventory[item_id] = {
+                            "name": item_name,
+                            "category": item_category,
+                            "status": item_status,
+                            "location": item_location,
+                            "notes": item_notes,
+                            "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
+                        }
+                        save_inventory(inventory)
+                        st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}** بنجاح!")
+        
+        # ============ TAB: رفع من Excel ============
+        with tab_add_excel:
+            st.markdown("### 📊 رفع معدات من ملف Excel")
+            st.info("📋 يجب أن يحتوي الملف على الأعمدة التالية: المعرف، الاسم، التصنيف، الحالة، الموقع، ملاحظات")
             
-            with col2:
-                item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
-                item_location = st.text_input("📍 الموقع/المكان", placeholder="مثال: الرف الأول")
-                item_notes = st.text_area("📝 ملاحظات", height=100)
+            uploaded_file = st.file_uploader("اختر ملف Excel", type=['xlsx', 'xls'], key="inventory_upload")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                submit_btn = st.form_submit_button("💾 حفظ المعدة", use_container_width=True, type="primary")
-            with col2:
-                reset_btn = st.form_submit_button("🔄 مسح الحقول", use_container_width=True)
-            
-            if submit_btn:
-                if not item_id:
-                    st.error("❌ يجب إدخال معرف المعدة!")
-                elif not item_name:
-                    st.error("❌ يجب إدخال اسم المعدة!")
-                elif item_id in inventory:
-                    st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
-                else:
-                    inventory[item_id] = {
-                        "name": item_name,
-                        "category": item_category,
-                        "status": item_status,
-                        "location": item_location,
-                        "notes": item_notes,
-                        "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
-                    }
-                    save_inventory(inventory)
-                    st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}** بنجاح!")
-                    st.balloons()
+            if uploaded_file:
+                try:
+                    # قراءة الملف
+                    df = pd.read_excel(uploaded_file)
+                    
+                    st.markdown("### 📊 معاينة البيانات")
+                    st.dataframe(df, use_container_width=True)
+                    
+                    # التحقق من الأعمدة
+                    required_columns = ['المعرف', 'الاسم', 'التصنيف', 'الحالة', 'الموقع', 'ملاحظات']
+                    df_columns = df.columns.tolist()
+                    
+                    # محاولة مطابقة الأعمدة (قد تكون بأسماء مختلفة)
+                    column_mapping = {}
+                    st.markdown("### 🔄 مطابقة الأعمدة")
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.write("**أعمدة الملف:**")
+                        for col in df_columns:
+                            st.write(f"• {col}")
+                    
+                    with col2:
+                        st.write("**الأعمدة المطلوبة:**")
+                        for col in required_columns:
+                            st.write(f"• {col}")
+                    
+                    with col3:
+                        st.write("**تعيين الأعمدة:**")
+                        for req_col in required_columns:
+                            selected_col = st.selectbox(
+                                f"اختر عمود {req_col}",
+                                df_columns,
+                                key=f"col_{req_col}"
+                            )
+                            column_mapping[req_col] = selected_col
+                    
+                    if st.button("✅ استيراد المعدات", use_container_width=True, type="primary"):
+                        count = 0
+                        errors = 0
+                        
+                        for idx, row in df.iterrows():
+                            try:
+                                item_id = str(row[column_mapping['المعرف']]).strip()
+                                item_name = str(row[column_mapping['الاسم']]).strip()
+                                
+                                if not item_id or not item_name:
+                                    errors += 1
+                                    continue
+                                
+                                if item_id in inventory:
+                                    st.warning(f"⚠️ المعرف '{item_id}' موجود بالفعل، سيتم تحديثه")
+                                
+                                inventory[item_id] = {
+                                    "name": item_name,
+                                    "category": str(row[column_mapping['التصنيف']]).strip() if pd.notna(row[column_mapping['التصنيف']]) else '-',
+                                    "status": str(row[column_mapping['الحالة']]).strip() if pd.notna(row[column_mapping['الحالة']]) else 'متوفر',
+                                    "location": str(row[column_mapping['الموقع']]).strip() if pd.notna(row[column_mapping['الموقع']]) else '-',
+                                    "notes": str(row[column_mapping['ملاحظات']]).strip() if pd.notna(row[column_mapping['ملاحظات']]) else '-',
+                                    "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
+                                }
+                                count += 1
+                            except Exception as e:
+                                errors += 1
+                                st.write(f"❌ خطأ في الصف {idx + 1}: {str(e)}")
+                        
+                        save_inventory(inventory)
+                        st.success(f"✅ تم استيراد **{count}** معدة بنجاح!")
+                        if errors > 0:
+                            st.warning(f"⚠️ حدثت {errors} أخطاء أثناء الاستيراد")
+                
+                except Exception as e:
+                    st.error(f"❌ خطأ في قراءة الملف: {str(e)}")
         
         st.divider()
         
