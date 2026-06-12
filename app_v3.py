@@ -584,7 +584,7 @@ else:
             
             with col2:
                 st.markdown("#### 📤 2. أرفع الملف المعدّل")
-                uploaded_file = st.file_uploader("اختر ملف CSV أو Excel", type=['xlsx', 'xls', 'csv'], key="inventory_upload")
+                uploaded_file = st.file_uploader("اختر ملف CSV أو Excel", type=['xlsx', 'xls', 'csv'], key="inventory_upload_excel")
             
             if uploaded_file:
                 try:
