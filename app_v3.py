@@ -271,7 +271,7 @@ else:
         
         # تبويبات فرعية
         tab_add_manual, tab_add_excel, tab_edit = st.tabs(["➕ إضافة يدوي", "📊 رفع من Excel", "✏️ تعديل المعدات"])
-with tab_add_manual:
+        with tab_add_manual:
             st.markdown("### ➕ إضافة معدة جديدة")
             
             with st.form("add_item_form"):
