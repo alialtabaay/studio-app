@@ -800,6 +800,62 @@ else:
                             
                             # عرض الـ HTML
                             st.components.v1.html(print_html, height=800)
+                            
+                            st.divider()
+                            st.markdown("### 📱 خيارات الإرسال")
+                            
+                            # إنشاء نص الإيصال
+                            receipt_text = f"""
+═══════════════════════════════════════
+📋 إيصال سحب معدات
+═══════════════════════════════════════
+
+🆔 الأوردر: {order_name}
+👤 الساحب: {employee_name}
+📅 التاريخ: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+المعدات المسحوبة:
+───────────────────────────────────────
+"""
+                            
+                            for idx, item_id in enumerate(selected_items, 1):
+                                item = available_items[item_id]
+                                receipt_text += f"{idx}. {item_id} - {item['name']}\n"
+                            
+                            receipt_text += f"""
+───────────────────────────────────────
+📝 الملاحظات: {loan_notes if loan_notes else 'بدون'}
+═══════════════════════════════════════
+تم الإنشاء: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+                            
+                            # خيارات الإرسال
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                st.write("**📋 نسخ النص:**")
+                                if st.button("📋 انسخ للكليب بوارد", use_container_width=True):
+                                    st.code(receipt_text)
+                                    st.success("✅ تم نسخ النص - الصقه حيث تريد!")
+                            
+                            with col2:
+                                st.write("**💬 إرسال عبر WhatsApp:**")
+                                # إنشاء رابط WhatsApp
+                                whatsapp_text = receipt_text.replace("\n", "%0A").replace(" ", "%20")
+                                whatsapp_link = f"https://wa.me/?text={whatsapp_text}"
+                                st.markdown(f"[💬 افتح WhatsApp](https://wa.me/?text={whatsapp_text})", unsafe_allow_html=True)
+                                st.caption("سيفتح WhatsApp جاهز للإرسال")
+                            
+                            with col3:
+                                st.write("**💾 تحميل الملف:**")
+                                if st.button("📥 حمّل TXT", use_container_width=True):
+                                    st.download_button(
+                                        label="📥 حمّل النص",
+                                        data=receipt_text,
+                                        file_name=f"receipt_{order_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                                        mime="text/plain",
+                                        use_container_width=True
+                                    )
                 
                 else:
                     st.info("⚠️ لا توجد معدات متاحة")
