@@ -451,7 +451,8 @@ else:
                 # تصفية
                 filtered_items = {}
                 for item_id, item in inventory.items():
-                    if search_term.lower() in item_id.lower() or \
+                    if not search_term or \
+                       search_term.lower() in item_id.lower() or \
                        search_term.lower() in item['name'].lower() or \
                        search_term.lower() in item.get('location', '').lower() or \
                        search_term.lower() in item.get('category', '').lower():
@@ -460,56 +461,81 @@ else:
                 if filtered_items:
                     st.caption(f"📊 عدد النتائج: {len(filtered_items)} من {len(inventory)}")
                     
-                    # جدول سريع
-                    st.markdown("### 📋 المعدات:")
+                    # جدول المعدات
+                    table_data = []
                     for item_id, item in filtered_items.items():
-                        col1, col2 = st.columns([4, 1])
-                        with col1:
-                            st.write(f"🆔 **{item_id}** • 📦 {item['name']} • 📍 {item.get('location', '-')}")
-                        with col2:
-                            if st.button("تعديل ✏️", key=f"edit_{item_id}", use_container_width=True):
-                                st.session_state[f"selected_{item_id}"] = True
+                        status_emoji = "🟢" if item.get('status') == 'متوفر' else "🟡" if item.get('status') == 'معار' else "🔴"
+                        table_data.append({
+                            "🆔 المعرف": item_id,
+                            "📦 الاسم": item['name'],
+                            "🏷️ التصنيف": item.get('category', '-'),
+                            "📍 الموقع": item.get('location', '-'),
+                            "📊 الحالة": f"{status_emoji} {item.get('status', '-')}"
+                        })
+                    
+                    # عرض الجدول
+                    df = pd.DataFrame(table_data)
+                    
+                    # اختيار المعدة من الجدول
+                    st.markdown("### 📋 جدول المعدات - اختر واحدة:")
+                    
+                    # عرض الجدول مع إمكانية الاختيار
+                    selected_row = st.selectbox(
+                        "اختر معدة للتعديل",
+                        range(len(df)),
+                        format_func=lambda x: f"{df.iloc[x]['🆔 المعرف']} - {df.iloc[x]['📦 الاسم']}",
+                        key="select_edit"
+                    )
+                    
+                    # عرض الجدول كاملاً
+                    st.dataframe(df, use_container_width=True, height=300, hide_index=True)
                     
                     st.divider()
                     
-                    # نموذج التعديل
-                    st.markdown("### 📝 نموذج التعديل")
-                    
-                    selected_id = st.selectbox(
-                        "اختر المعدة للتعديل",
-                        list(filtered_items.keys()),
-                        format_func=lambda x: f"{filtered_items[x]['name']} ({x})"
-                    )
-                    
-                    if selected_id:
-                        item = filtered_items[selected_id]
+                    # التفاصيل والتعديل
+                    if selected_row is not None:
+                        selected_item_id = df.iloc[selected_row]['🆔 المعرف']
+                        item = filtered_items[selected_item_id]
+                        
+                        st.markdown(f"### 📝 التفاصيل والتعديل: **{selected_item_id}**")
                         
                         col1, col2 = st.columns(2)
                         
                         with col1:
-                            new_id = st.text_input("🆔 المعرف", value=selected_id, key="edit_id")
+                            st.markdown("#### البيانات الحالية:")
+                            st.write(f"📦 **الاسم:** {item['name']}")
+                            st.write(f"🏷️ **التصنيف:** {item.get('category', '-')}")
+                            st.write(f"📍 **الموقع:** {item.get('location', '-')}")
+                            st.write(f"📊 **الحالة:** {item.get('status', '-')}")
+                            if item.get('notes'):
+                                st.write(f"📝 **ملاحظات:** {item['notes']}")
+                            st.write(f"📅 **التاريخ:** {item.get('date_added', '-')}")
+                        
+                        with col2:
+                            st.markdown("#### تعديل البيانات:")
+                            new_id = st.text_input("🆔 المعرف", value=selected_item_id, key="edit_id")
                             new_name = st.text_input("📦 الاسم", value=item['name'], key="edit_name")
                             new_category = st.selectbox("🏷️ التصنيف", categories, 
                                                        index=categories.index(item.get('category', categories[0])), key="edit_cat")
-                        
-                        with col2:
                             new_status = st.selectbox("📊 الحالة", 
                                                       ["متوفر", "معار", "صيانة", "خارج الخدمة"],
                                                       index=["متوفر", "معار", "صيانة", "خارج الخدمة"].index(item.get('status', 'متوفر')), key="edit_stat")
                             new_location = st.text_input("📍 الموقع", value=item.get('location', ''), key="edit_loc")
-                            new_notes = st.text_area("📝 ملاحظات", value=item.get('notes', ''), height=100, key="edit_notes")
+                            new_notes = st.text_area("📝 ملاحظات", value=item.get('notes', ''), height=80, key="edit_notes")
                         
-                        col1, col2 = st.columns(2)
+                        st.divider()
+                        
+                        col1, col2, col3 = st.columns(3)
                         
                         with col1:
-                            if st.button("💾 حفظ التعديل", use_container_width=True, type="primary", key=f"save_{selected_id}"):
+                            if st.button("💾 حفظ التعديل", use_container_width=True, type="primary", key=f"save_{selected_item_id}"):
                                 if not new_id or not new_name:
                                     st.error("❌ املأ الحقول المطلوبة!")
-                                elif new_id != selected_id and new_id in inventory:
+                                elif new_id != selected_item_id and new_id in inventory:
                                     st.error(f"❌ المعرف '{new_id}' موجود بالفعل!")
                                 else:
-                                    if new_id != selected_id:
-                                        del inventory[selected_id]
+                                    if new_id != selected_item_id:
+                                        del inventory[selected_item_id]
                                     
                                     inventory[new_id] = {
                                         "name": new_name,
@@ -524,13 +550,17 @@ else:
                                     st.rerun()
                         
                         with col2:
-                            if st.button("🗑️ حذف المعدة", use_container_width=True, type="secondary", key=f"delete_{selected_id}"):
-                                password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key=f"pwd_{selected_id}")
+                            if st.button("🔄 إعادة تعيين", use_container_width=True, key=f"reset_{selected_item_id}"):
+                                st.rerun()
+                        
+                        with col3:
+                            if st.button("🗑️ حذف", use_container_width=True, type="secondary", key=f"delete_{selected_item_id}"):
+                                password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key=f"pwd_{selected_item_id}")
                                 if password:
                                     if hash_password(password) != users[st.session_state["username"]]["password"]:
                                         st.error("❌ كلمة السر غير صحيحة!")
                                     else:
-                                        del inventory[selected_id]
+                                        del inventory[selected_item_id]
                                         save_inventory(inventory)
                                         st.success(f"✅ تم حذف المعدة!")
                                         st.rerun()
