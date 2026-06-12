@@ -1999,21 +1999,138 @@ else:
             
             with tab_backup:
                 st.markdown("### 💾 النسخ الاحتياطي")
-                st.info("📊 حفظ النسخ الاحتياطية من البيانات")
+                st.info("💡 **النسخ الاحتياطية توفر:**\n- حماية البيانات من الفقدان\n- استعادة سهلة في حالة الطوارئ\n- نقل البيانات بين الأنظمة")
                 
-                if st.button("📥 تحميل نسخة احتياطية من البيانات"):
-                    backup_data = {
-                        "users": users,
-                        "inventory": load_inventory(),
-                        "loans": load_loans(),
-                        "categories": categories
-                    }
-                    st.download_button(
-                        label="📥 حمّل البيانات (JSON)",
-                        data=json.dumps(backup_data, ensure_ascii=False, indent=2),
-                        file_name=f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                        mime="application/json"
-                    )
+                backup_tab1, backup_tab2, backup_tab3 = st.tabs(["📥 تصدير نسخة", "📤 استيراد نسخة", "📊 معلومات"])
+                
+                with backup_tab1:
+                    st.markdown("#### 📥 تصدير النسخة الاحتياطية")
+                    st.write("**حمّل نسخة من كل البيانات:**")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if st.button("💾 تصدير كل البيانات", use_container_width=True, type="primary"):
+                            backup_data = {
+                                "users": users,
+                                "inventory": load_inventory(),
+                                "loans": load_loans(),
+                                "categories": load_categories(),
+                                "backup_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                "backup_info": {
+                                    "total_inventory": len(load_inventory()),
+                                    "total_loans": len(load_loans()),
+                                    "total_users": len(users)
+                                }
+                            }
+                            
+                            backup_json = json.dumps(backup_data, ensure_ascii=False, indent=2)
+                            
+                            st.success("✅ النسخة جاهزة للتحميل!")
+                            st.download_button(
+                                label="📥 حمّل النسخة (JSON)",
+                                data=backup_json,
+                                file_name=f"backup_كامل_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                                mime="application/json",
+                                use_container_width=True
+                            )
+                    
+                    with col2:
+                        if st.button("💾 تصدير المعدات فقط", use_container_width=True):
+                            inventory_backup = load_inventory()
+                            st.download_button(
+                                label="📥 حمّل المعدات",
+                                data=json.dumps(inventory_backup, ensure_ascii=False, indent=2),
+                                file_name=f"backup_معدات_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                                mime="application/json",
+                                use_container_width=True
+                            )
+                
+                with backup_tab2:
+                    st.markdown("#### 📤 استيراد النسخة الاحتياطية")
+                    st.warning("⚠️ **تحذير:** استيراد نسخة سيستبدل البيانات الحالية!")
+                    
+                    uploaded_file = st.file_uploader("اختر ملف النسخة الاحتياطية", type=["json"], label_visibility="collapsed")
+                    
+                    if uploaded_file is not None:
+                        try:
+                            backup_data = json.loads(uploaded_file.read().decode('utf-8'))
+                            
+                            st.info(f"📊 **محتويات النسخة:**\n"
+                                   f"- المعدات: {len(backup_data.get('inventory', {}))} عنصر\n"
+                                   f"- الإعارات: {len(backup_data.get('loans', {}))} إعارة\n"
+                                   f"- المستخدمين: {len(backup_data.get('users', {}))} مستخدم\n"
+                                   f"- تاريخ النسخ: {backup_data.get('backup_date', 'غير محدد')}")
+                            
+                            if st.button("✅ استيراد النسخة", type="primary", use_container_width=True):
+                                password = st.text_input("أدخل كلمة السر للتأكيد", type="password")
+                                if password and hash_password(password) == users[st.session_state["username"]]["password"]:
+                                    # استيراد البيانات
+                                    with open('data/inventory.json', 'w', encoding='utf-8') as f:
+                                        json.dump(backup_data.get('inventory', {}), f, ensure_ascii=False, indent=2)
+                                    
+                                    with open('data/loans.json', 'w', encoding='utf-8') as f:
+                                        json.dump(backup_data.get('loans', {}), f, ensure_ascii=False, indent=2)
+                                    
+                                    if 'categories' in backup_data:
+                                        with open('data/categories.json', 'w', encoding='utf-8') as f:
+                                            json.dump(backup_data['categories'], f, ensure_ascii=False, indent=2)
+                                    
+                                    st.success("✅ تم استيراد النسخة بنجاح!")
+                                    st.info("🔄 سيتم تحديث البيانات عند إعادة تحميل الصفحة")
+                                else:
+                                    st.error("❌ كلمة السر غير صحيحة!")
+                        except:
+                            st.error("❌ الملف غير صحيح! تأكد من أنه نسخة احتياطية صحيحة")
+                
+                with backup_tab3:
+                    st.markdown("#### 📊 معلومات النسخ الاحتياطية")
+                    
+                    inventory = load_inventory()
+                    loans_data = load_loans()
+                    categories = load_categories()
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("📦 عدد المعدات", len(inventory))
+                    with col2:
+                        st.metric("📋 عدد الإعارات", len(loans_data))
+                    with col3:
+                        st.metric("👥 عدد المستخدمين", len(users))
+                    
+                    st.divider()
+                    
+                    st.markdown("**📝 ملخص البيانات:**")
+                    
+                    # حالة المعدات
+                    statuses = {}
+                    for item in inventory.values():
+                        status = item.get('status')
+                        statuses[status] = statuses.get(status, 0) + 1
+                    
+                    if statuses:
+                        st.write("**توزيع حالة المعدات:**")
+                        for status, count in statuses.items():
+                            st.write(f"  - {status}: {count}")
+                    
+                    st.divider()
+                    
+                    # حالة الإعارات
+                    loan_statuses = {}
+                    for loan in loans_data.values():
+                        status = loan.get('status', 'غير محدد')
+                        loan_statuses[status] = loan_statuses.get(status, 0) + 1
+                    
+                    if loan_statuses:
+                        st.write("**توزيع حالة الإعارات:**")
+                        for status, count in loan_statuses.items():
+                            st.write(f"  - {status}: {count}")
+                    
+                    st.divider()
+                    
+                    st.markdown("**⏰ آخر تحديث:** الآن")
+                    st.markdown(f"**📅 التاريخ الحالي:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         else:
             st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
 
