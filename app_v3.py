@@ -1118,62 +1118,188 @@ else:
                     # زر الطباعة
                     col1, col2 = st.columns([4, 1])
                     with col2:
-                        if st.button("🖨️ طباعة", key=f"print_{order_name}", use_container_width=True):
-                            # إنشاء HTML للطباعة
+                        if st.button("📊 تقرير", key=f"report_{order_name}", use_container_width=True):
+                            st.session_state[f"show_report_{order_name}"] = True
+                    
+                    # عرض التقرير المنفصل
+                    if st.session_state.get(f"show_report_{order_name}"):
+                        st.divider()
+                        st.markdown(f"## 📊 تقرير الأوردر: **{order_name}**")
+                        
+                        # معلومات الأوردر الكاملة
+                        st.markdown("### 📋 معلومات الأوردر")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.write(f"**🆔 الأوردر:**\n{order_name}")
+                        with col2:
+                            st.write(f"**👤 الساحب:**\n{first_item['employee']}")
+                        with col3:
+                            st.write(f"**📅 التاريخ:**\n{first_item['date']}")
+                        with col4:
+                            st.write(f"**⏰ موعد الإرجاع:**\n{first_item['return_date']}")
+                        
+                        st.divider()
+                        
+                        # جدول المعدات الكاملة
+                        st.markdown("### 📊 المعدات الكاملة (المسحوبة)")
+                        all_table = []
+                        for idx, (loan_id, loan_data) in enumerate(all_order_loans, 1):
+                            status = "✅ مرجعة" if loan_data.get('status') == 'مرجعة' else "📦 نشطة"
+                            all_table.append({
+                                "#": idx,
+                                "الحالة": status,
+                                "المعرف": loan_data['item_id'],
+                                "الاسم": loan_data['item_name'],
+                                "التصنيف": loan_data.get('category', '-'),
+                                "الموقع": loan_data.get('location', '-')
+                            })
+                        
+                        df_all_report = pd.DataFrame(all_table)
+                        st.dataframe(df_all_report, use_container_width=True, hide_index=True)
+                        
+                        st.divider()
+                        
+                        # المعدات النشطة
+                        if active_items_list:
+                            st.markdown("### 📦 المعدات المتبقية (النشطة)")
+                            active_table = []
+                            for idx, (loan_id, loan_data) in enumerate(active_items_list, 1):
+                                active_table.append({
+                                    "#": idx,
+                                    "المعرف": loan_data['item_id'],
+                                    "الاسم": loan_data['item_name'],
+                                    "التصنيف": loan_data.get('category', '-'),
+                                    "الموقع": loan_data.get('location', '-'),
+                                    "رقم الإعارة": loan_id
+                                })
+                            
+                            df_active_report = pd.DataFrame(active_table)
+                            st.dataframe(df_active_report, use_container_width=True, hide_index=True)
+                            st.warning(f"⚠️ **{len(active_items_list)} معدة متبقية**")
+                            
+                            st.divider()
+                        
+                        # المعدات المرجعة
+                        if returned_items:
+                            st.markdown("### ✅ المعدات المرجعة")
+                            returned_table = []
+                            for idx, (loan_id, loan_data) in enumerate(returned_items, 1):
+                                returned_table.append({
+                                    "#": idx,
+                                    "المعرف": loan_data['item_id'],
+                                    "الاسم": loan_data['item_name'],
+                                    "الحالة": loan_data.get('return_condition', '-'),
+                                    "تاريخ الإرجاع": loan_data.get('actual_return_date', '-'),
+                                    "ملاحظات": loan_data.get('return_notes', '-')[:30] + "..." if loan_data.get('return_notes') else '-'
+                                })
+                            
+                            df_returned_report = pd.DataFrame(returned_table)
+                            st.dataframe(df_returned_report, use_container_width=True, hide_index=True)
+                            
+                            st.divider()
+                        
+                        # ملخص شامل
+                        st.markdown("### 📊 ملخص التقرير")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("📦 إجمالي المعدات", len(all_order_loans))
+                        with col2:
+                            st.metric("📥 المتبقية", len(active_items_list))
+                        with col3:
+                            st.metric("✅ المرجعة", len(returned_items))
+                        with col4:
+                            status_pct = int((len(returned_items) / len(all_order_loans) * 100)) if all_order_loans else 0
+                            st.metric("📊 نسبة الإرجاع", f"{status_pct}%")
+                        
+                        st.divider()
+                        
+                        # الملاحظات
+                        if first_item.get('notes'):
+                            st.markdown("### 📝 ملاحظات الأوردر")
+                            st.info(first_item['notes'])
+                        
+                        st.divider()
+                        
+                        # زر الطباعة
+                        if st.button("🖨️ طباعة التقرير", use_container_width=True, key=f"print_report_{order_name}"):
+                            # HTML التقرير
                             print_html = f"""
                             <html dir="rtl" style="font-family: Arial, sans-serif;">
                             <head>
                                 <title>تقرير أوردر</title>
                                 <style>
-                                    body {{ margin: 20px; direction: rtl; }}
-                                    .header {{ text-align: center; margin-bottom: 30px; }}
-                                    .title {{ font-size: 28px; font-weight: bold; margin-bottom: 5px; }}
-                                    .info-section {{ margin-bottom: 30px; }}
-                                    .info-item {{ display: inline-block; margin: 10px 20px; }}
+                                    body {{ margin: 20px; direction: rtl; font-size: 14px; }}
+                                    .header {{ text-align: center; margin-bottom: 30px; border-bottom: 3px solid #000; padding-bottom: 20px; }}
+                                    .title {{ font-size: 28px; font-weight: bold; margin-bottom: 10px; }}
+                                    .subtitle {{ font-size: 18px; color: #666; }}
+                                    .info-box {{ display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin: 20px 0; }}
+                                    .info-item {{ border: 1px solid #ddd; padding: 15px; border-radius: 5px; }}
+                                    .info-label {{ font-size: 12px; color: #666; margin-bottom: 5px; }}
+                                    .info-value {{ font-size: 16px; font-weight: bold; }}
                                     table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-                                    th, td {{ border: 1px solid #000; padding: 12px; text-align: right; }}
-                                    th {{ background-color: #f0f0f0; font-weight: bold; }}
-                                    .section-title {{ font-size: 18px; font-weight: bold; margin-top: 30px; margin-bottom: 15px; }}
-                                    .summary {{ margin-top: 30px; padding: 15px; background-color: #f9f9f9; border: 1px solid #ddd; }}
-                                    @media print {{ body {{ margin: 0; }} }}
+                                    th {{ background-color: #333; color: white; padding: 12px; text-align: right; font-weight: bold; }}
+                                    td {{ border: 1px solid #ddd; padding: 10px; text-align: right; }}
+                                    tr:nth-child(even) {{ background-color: #f9f9f9; }}
+                                    .section-title {{ font-size: 18px; font-weight: bold; margin-top: 30px; margin-bottom: 15px; border-left: 4px solid #333; padding-left: 10px; }}
+                                    .summary {{ margin-top: 30px; padding: 20px; background-color: #f0f0f0; border-radius: 5px; }}
+                                    .summary-grid {{ display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }}
+                                    .summary-item {{ text-align: center; }}
+                                    .notes {{ margin-top: 20px; padding: 15px; background-color: #fffacd; border-left: 4px solid #ffc700; }}
+                                    .footer {{ margin-top: 50px; text-align: center; border-top: 1px solid #ddd; padding-top: 20px; color: #666; font-size: 12px; }}
+                                    @media print {{ body {{ margin: 0; }} .no-print {{ display: none; }} }}
                                 </style>
                             </head>
                             <body>
                                 <div class="header">
-                                    <div class="title">📋 تقرير أوردر مفصل</div>
+                                    <div class="title">📊 تقرير الأوردر</div>
+                                    <div class="subtitle">تقرير مفصل شامل</div>
                                 </div>
                                 
-                                <div class="info-section">
-                                    <div class="info-item"><strong>الأوردر:</strong> {order_name}</div>
-                                    <div class="info-item"><strong>الساحب:</strong> {first_item['employee']}</div>
-                                    <div class="info-item"><strong>التاريخ:</strong> {first_item['date']}</div>
-                                    <div class="info-item"><strong>موعد الإرجاع:</strong> {first_item['return_date']}</div>
+                                <div class="info-box">
+                                    <div class="info-item">
+                                        <div class="info-label">🆔 الأوردر</div>
+                                        <div class="info-value">{order_name}</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">👤 الساحب</div>
+                                        <div class="info-value">{first_item['employee']}</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">📅 التاريخ</div>
+                                        <div class="info-value">{first_item['date'][:10]}</div>
+                                    </div>
+                                    <div class="info-item">
+                                        <div class="info-label">⏰ موعد الإرجاع</div>
+                                        <div class="info-value">{first_item['return_date']}</div>
+                                    </div>
                                 </div>
                                 
                                 <div class="section-title">📊 المعدات الكاملة (المسحوبة)</div>
                                 <table>
                                     <tr>
                                         <th>#</th>
+                                        <th>الحالة</th>
                                         <th>المعرف</th>
                                         <th>الاسم</th>
-                                        <th>الحالة</th>
+                                        <th>التصنيف</th>
+                                        <th>الموقع</th>
                                     </tr>
                             """
                             
                             for idx, (loan_id, loan_data) in enumerate(all_order_loans, 1):
-                                status = "نشطة" if loan_data.get('status') == 'نشطة' else "مرجعة"
+                                status = "✅ مرجعة" if loan_data.get('status') == 'مرجعة' else "📦 نشطة"
                                 print_html += f"""
                                     <tr>
                                         <td>{idx}</td>
+                                        <td>{status}</td>
                                         <td>{loan_data['item_id']}</td>
                                         <td>{loan_data['item_name']}</td>
-                                        <td>{status}</td>
+                                        <td>{loan_data.get('category', '-')}</td>
+                                        <td>{loan_data.get('location', '-')}</td>
                                     </tr>
                                 """
                             
-                            print_html += """
-                                </table>
-                            """
+                            print_html += "</table>"
                             
                             # المعدات النشطة
                             if active_items_list:
@@ -1184,6 +1310,7 @@ else:
                                         <th>#</th>
                                         <th>المعرف</th>
                                         <th>الاسم</th>
+                                        <th>التصنيف</th>
                                     </tr>
                                 """
                                 for idx, (loan_id, loan_data) in enumerate(active_items_list, 1):
@@ -1192,6 +1319,7 @@ else:
                                         <td>{idx}</td>
                                         <td>{loan_data['item_id']}</td>
                                         <td>{loan_data['item_name']}</td>
+                                        <td>{loan_data.get('category', '-')}</td>
                                     </tr>
                                     """
                                 print_html += "</table>"
@@ -1222,13 +1350,45 @@ else:
                                 print_html += "</table>"
                             
                             # الملخص
+                            pct = int((len(returned_items) / len(all_order_loans) * 100)) if all_order_loans else 0
                             print_html += f"""
                                 <div class="summary">
-                                    <strong>📊 الملخص:</strong><br>
-                                    • المعدات الكاملة: {len(all_order_loans)}<br>
-                                    • المعدات المتبقية: {len(active_items_list)}<br>
-                                    • المعدات المرجعة: {len(returned_items)}<br>
-                                    • الملاحظات: {first_item.get('notes', '-')}
+                                    <div class="section-title" style="margin-top: 0;">📊 ملخص التقرير</div>
+                                    <div class="summary-grid">
+                                        <div class="summary-item">
+                                            <div style="font-size: 24px; font-weight: bold;">{len(all_order_loans)}</div>
+                                            <div style="color: #666; font-size: 12px;">إجمالي المعدات</div>
+                                        </div>
+                                        <div class="summary-item">
+                                            <div style="font-size: 24px; font-weight: bold;">{len(active_items_list)}</div>
+                                            <div style="color: #666; font-size: 12px;">المتبقية</div>
+                                        </div>
+                                        <div class="summary-item">
+                                            <div style="font-size: 24px; font-weight: bold;">{len(returned_items)}</div>
+                                            <div style="color: #666; font-size: 12px;">المرجعة</div>
+                                        </div>
+                                        <div class="summary-item">
+                                            <div style="font-size: 24px; font-weight: bold;">{pct}%</div>
+                                            <div style="color: #666; font-size: 12px;">نسبة الإرجاع</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            """
+                            
+                            # الملاحظات
+                            if first_item.get('notes'):
+                                print_html += f"""
+                                <div class="notes">
+                                    <strong>📝 ملاحظات الأوردر:</strong><br>
+                                    {first_item['notes']}
+                                </div>
+                                """
+                            
+                            # التذييل
+                            print_html += f"""
+                                <div class="footer">
+                                    <p>تم إنشاء التقرير في: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+                                    <p>نظام إدارة المعدات والإعارات</p>
                                 </div>
                                 
                                 <script>
@@ -1238,7 +1398,7 @@ else:
                             </html>
                             """
                             
-                            st.components.v1.html(print_html, height=800)
+                            st.components.v1.html(print_html, height=1000)
                     
                     st.markdown("---")
                     
