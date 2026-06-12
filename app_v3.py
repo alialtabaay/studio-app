@@ -269,70 +269,152 @@ else:
         inventory = load_inventory()
         categories = load_categories()
         
-        col1, col2 = st.columns([2, 1])
+        st.markdown("### ➕ إضافة معدة جديدة")
+        
+        col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown("### ➕ إضافة معدة جديدة")
-            col_a, col_b = st.columns(2)
-            
-            with col_a:
-                item_id = st.text_input("معرف المعدة (ID)")
-                item_name = st.text_input("اسم المعدة")
-                item_category = st.selectbox("التصنيف", categories)
-            
-            with col_b:
-                item_status = st.selectbox("الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
-                item_location = st.text_input("الموقع/المكان")
-                item_notes = st.text_area("ملاحظات")
-            
-            if st.button("💾 حفظ المعدة", use_container_width=True, type="primary"):
-                if item_id and item_name:
-                    inventory[item_id] = {
-                        "name": item_name,
-                        "category": item_category,
-                        "status": item_status,
-                        "location": item_location,
-                        "notes": item_notes,
-                        "date_added": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                        "price": 0
-                    }
-                    save_inventory(inventory)
-                    st.success(f"✅ تم حفظ المعدة: {item_name}")
-                    st.rerun()
-                else:
-                    st.error("❌ يرجى ملء الحقول المطلوبة!")
+            item_id = st.text_input("🆔 معرف المعدة (ID)", key="item_id_input", placeholder="مثال: CAM-001")
+            item_name = st.text_input("📦 اسم المعدة", key="item_name_input", placeholder="اسم المعدة")
+            item_category = st.selectbox("🏷️ التصنيف", categories)
         
         with col2:
-            st.markdown("### 📊 إحصائيات")
-            st.metric("إجمالي", len(inventory))
-            st.metric("متوفرة", sum(1 for i in inventory.values() if i.get('status') == 'متوفر'))
-            st.metric("معارة", sum(1 for i in inventory.values() if i.get('status') == 'معار'))
+            item_status = st.selectbox("📊 الحالة", ["متوفر", "معار", "صيانة", "خارج الخدمة"])
+            item_location = st.text_input("📍 الموقع/المكان", key="item_location_input", placeholder="مثال: الرف الأول")
+            item_notes = st.text_area("📝 ملاحظات", key="item_notes_input", height=100)
         
-        st.markdown("---")
-        st.markdown("### 📋 قائمة المعدات")
+        col1, col2, col3 = st.columns([1, 1, 2])
+        
+        with col1:
+            save_btn = st.button("💾 حفظ المعدة", use_container_width=True, type="primary")
+        
+        with col2:
+            clear_btn = st.button("🔄 مسح الحقول", use_container_width=True)
+        
+        if save_btn:
+            if not item_id:
+                st.error("❌ يجب إدخال معرف المعدة!")
+            elif not item_name:
+                st.error("❌ يجب إدخال اسم المعدة!")
+            elif item_id in inventory:
+                st.error(f"❌ المعرف '{item_id}' مستخدم بالفعل! اختر معرفاً فريداً")
+            else:
+                inventory[item_id] = {
+                    "name": item_name,
+                    "category": item_category,
+                    "status": item_status,
+                    "location": item_location,
+                    "notes": item_notes,
+                    "date_added": datetime.now().strftime("%Y-%m-%d %H:%M")
+                }
+                save_inventory(inventory)
+                st.success(f"✅ تم حفظ المعدة: **{item_name}** بمعرف **{item_id}**")
+                
+                # مسح الحقول
+                st.session_state["item_id_input"] = ""
+                st.session_state["item_name_input"] = ""
+                st.session_state["item_location_input"] = ""
+                st.session_state["item_notes_input"] = ""
+                st.rerun()
+        
+        if clear_btn:
+            st.session_state["item_id_input"] = ""
+            st.session_state["item_name_input"] = ""
+            st.session_state["item_location_input"] = ""
+            st.session_state["item_notes_input"] = ""
+            st.rerun()
+        
+        st.divider()
+        
+        # الإحصائيات
+        st.markdown("### 📊 إحصائيات المخزن")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("🔢 إجمالي المعدات", len(inventory))
+        with col2:
+            available = sum(1 for i in inventory.values() if i.get('status') == 'متوفر')
+            st.metric("🟢 متوفرة", available)
+        with col3:
+            loaned = sum(1 for i in inventory.values() if i.get('status') == 'معار')
+            st.metric("🟡 معارة", loaned)
+        with col4:
+            maintenance = sum(1 for i in inventory.values() if i.get('status') == 'صيانة')
+            st.metric("🔴 صيانة", maintenance)
+        
+        st.divider()
+        
+        # قائمة المعدات - جدول
+        st.markdown("### 📋 جدول المعدات")
         
         if inventory:
-            search = st.text_input("🔍 ابحث في المعدات...")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                search = st.text_input("🔍 ابحث بالمعرف أو الاسم...")
+            with col2:
+                filter_status = st.selectbox("تصفية بالحالة", ["الكل", "متوفر", "معار", "صيانة", "خارج الخدمة"], key="inv_status_filter")
+            with col3:
+                filter_category = st.selectbox("تصفية بالتصنيف", ["الكل"] + categories, key="inv_cat_filter")
             
-            for item_id, item_data in inventory.items():
-                if search.lower() in item_id.lower() or search.lower() in item_data['name'].lower():
-                    col1, col2, col3 = st.columns([2, 1.5, 0.5])
-                    
-                    with col1:
-                        st.write(f"**{item_data['name']}** ({item_id})")
-                        st.caption(f"📂 {item_data.get('category', 'بدون تصنيف')} | 📍 {item_data.get('location', 'غير محدد')}")
-                    
-                    with col2:
-                        status_emoji = "🟢" if item_data['status'] == 'متوفر' else "🟡" if item_data['status'] == 'معار' else "🔴"
-                        st.write(f"{status_emoji} {item_data['status']}")
-                    
-                    with col3:
-                        if st.button("🗑️", key=f"del_{item_id}"):
-                            del inventory[item_id]
+            # إعداد البيانات للجدول
+            table_data = []
+            for item_id, item in inventory.items():
+                # تطبيق الفلاتر
+                if search and search.lower() not in item_id.lower() and search.lower() not in item['name'].lower():
+                    continue
+                if filter_status != "الكل" and item['status'] != filter_status:
+                    continue
+                if filter_category != "الكل" and item.get('category') != filter_category:
+                    continue
+                
+                status_emoji = "🟢" if item['status'] == 'متوفر' else "🟡" if item['status'] == 'معار' else "🔴"
+                
+                table_data.append({
+                    "🆔 المعرف": item_id,
+                    "📦 الاسم": item['name'],
+                    "🏷️ التصنيف": item.get('category', '-'),
+                    "📍 الموقع": item.get('location', '-'),
+                    "📊 الحالة": f"{status_emoji} {item['status']}",
+                    "📅 التاريخ": item.get('date_added', '-'),
+                    "📝 ملاحظات": item.get('notes', '-')[:50] if item.get('notes') else '-'
+                })
+            
+            if table_data:
+                df = pd.DataFrame(table_data)
+                st.dataframe(df, use_container_width=True, height=400, hide_index=True)
+                st.caption(f"✅ عدد المعدات المعروضة: **{len(table_data)}** من **{len(inventory)}**")
+                
+                st.divider()
+                
+                # حذف المعدة
+                st.markdown("### 🗑️ حذف معدة")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    item_to_delete = st.selectbox(
+                        "اختر المعدة للحذف",
+                        list(inventory.keys()),
+                        format_func=lambda x: f"{inventory[x]['name']} ({x})",
+                        key="delete_selector"
+                    )
+                
+                with col2:
+                    password = st.text_input("أدخل كلمة السر للتأكيد", type="password", key="delete_password")
+                
+                if st.button("🗑️ حذف المعدة", use_container_width=True, type="secondary"):
+                    if password and hash_password(password) == users[st.session_state["username"]]["password"]:
+                        if item_to_delete:
+                            item_name = inventory[item_to_delete]['name']
+                            del inventory[item_to_delete]
                             save_inventory(inventory)
+                            st.success(f"✅ تم حذف المعدة: **{item_name}**")
                             st.rerun()
-                    
-                    st.divider()
+                    elif not password:
+                        st.error("❌ يجب إدخال كلمة السر!")
+                    else:
+                        st.error("❌ كلمة السر غير صحيحة!")
+            else:
+                st.info("❌ لم يتم العثور على معدات تطابق الفلاتر")
         else:
             st.info("📭 لا توجد معدات مسجلة")
 
@@ -751,4 +833,4 @@ else:
             st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
 
 st.markdown("---")
-st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 |  by zero aapp  ✨</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)
