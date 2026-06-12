@@ -348,15 +348,25 @@ else:
             
             with col2:
                 st.markdown("#### 📤 2. أرفع الملف المعدّل")
-                uploaded_file = st.file_uploader("اختر ملف Excel أو CSV", type=['xlsx', 'xls', 'csv'], key="inventory_upload")
+                uploaded_file = st.file_uploader("اختر ملف CSV أو Excel", type=['xlsx', 'xls', 'csv'], key="inventory_upload")
             
             if uploaded_file:
                 try:
                     # قراءة الملف
                     if uploaded_file.name.endswith('.csv'):
-                        df = pd.read_csv(uploaded_file)
+                        df = pd.read_csv(uploaded_file, encoding='utf-8')
                     else:
-                        df = pd.read_excel(uploaded_file)
+                        # محاولة قراءة Excel بدون openpyxl
+                        try:
+                            df = pd.read_excel(uploaded_file, engine='openpyxl')
+                        except:
+                            try:
+                                df = pd.read_excel(uploaded_file, engine='xlrd')
+                            except:
+                                # إذا فشل الاثنان، اطلب من المستخدم تحويل الملف لـ CSV
+                                st.error("❌ لا يمكن قراءة ملف Excel. يرجى تحويل الملف إلى CSV وإعادة المحاولة")
+                                st.info("💡 يمكنك فتح الملف في Excel وحفظه باسم جديد باختيار 'Save As' ثم اختر CSV")
+                                st.stop()
                     
                     st.markdown("### 📊 معاينة البيانات")
                     st.dataframe(df, use_container_width=True)
@@ -426,6 +436,7 @@ else:
                 
                 except Exception as e:
                     st.error(f"❌ خطأ في قراءة الملف: {str(e)}")
+                    st.info("💡 تجربة: حوّل الملف إلى صيغة CSV وأعد المحاولة")
         
         st.divider()
         
