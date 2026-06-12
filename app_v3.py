@@ -1053,4 +1053,5 @@ else:
             st.warning("⚠️ هذه الصفحة متاحة فقط للمديرين")
 
 st.markdown("---")
-st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)-
+st.markdown("<p style='text-align:center; color:#64748b; font-size:0.85rem;'>نظام إدارة الاستوديو v3.0 | تطويراً مستمراً ✨</p>", unsafe_allow_html=True)
+
