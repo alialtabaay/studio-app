@@ -647,50 +647,135 @@ else:
         tab_checkout, tab_return, tab_active = st.tabs(["📤 سحب", "📥 إرجاع", "📦 نشطة"])
         
         with tab_checkout:
-            st.markdown("### 📤 سحب معدة جديدة")
+            st.markdown("### 📤 سحب المعدات")
             
             if inventory:
+                st.markdown("#### خطوة 1: بيانات الأوردر")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    order_name = st.text_input("📋 اسم الأوردر/العميل")
+                with col2:
+                    employee_name = st.text_input("👤 اسم الساحب")
+                with col3:
+                    loan_notes = st.text_area("📝 ملاحظات", height=50)
+                
+                st.divider()
+                
+                st.markdown("#### خطوة 2: اختر المعدات المراد سحبها")
+                
+                # جدول المعدات المتاحة
                 available_items = {k: v for k, v in inventory.items() if v.get('status') == 'متوفر'}
                 
                 if available_items:
-                    col1, col2 = st.columns(2)
+                    # إنشاء جدول باختيارات
+                    table_data = []
+                    selected_items = {}
+                    
+                    for item_id, item in available_items.items():
+                        table_data.append({
+                            "🆔": item_id,
+                            "📦": item['name'],
+                            "📍": item.get('location', '-'),
+                            "✅": False  # checkbox default
+                        })
+                    
+                    # عرض الجدول مع checkboxes
+                    st.write("**اختر المعدات (علامة صح):**")
+                    
+                    cols = st.columns(len(available_items) + 1)
+                    
+                    for idx, (item_id, item) in enumerate(available_items.items()):
+                        with st.container():
+                            col1, col2, col3, col4 = st.columns([1, 2, 2, 1])
+                            
+                            with col1:
+                                checkbox = st.checkbox("✓", key=f"select_{item_id}")
+                                if checkbox:
+                                    selected_items[item_id] = item
+                            
+                            with col2:
+                                st.write(f"**{item_id}**")
+                            with col3:
+                                st.write(item['name'])
+                            with col4:
+                                st.write(item.get('location', '-'))
+                    
+                    st.divider()
+                    
+                    # زر الحفظ والطباعة
+                    col1, col2, col3 = st.columns(3)
                     
                     with col1:
-                        item_id = st.selectbox("اختر المعدة", list(available_items.keys()), 
-                                            format_func=lambda x: f"{available_items[x]['name']} ({x})")
-                        customer = st.text_input("اسم العميل/الأوردر")
-                        employee = st.text_input("الموظف المستقبل")
+                        if st.button("💾 حفظ السحب", use_container_width=True, type="primary"):
+                            if not order_name or not employee_name:
+                                st.error("❌ يرجى ملء الأوردر والساحب!")
+                            elif not selected_items:
+                                st.error("❌ اختر معدة واحدة على الأقل!")
+                            else:
+                                # حفظ الإعارات
+                                for item_id, item in selected_items.items():
+                                    loan_id = f"LOAN-{len(loans)+1:05d}"
+                                    loans[loan_id] = {
+                                        "item_id": item_id,
+                                        "item_name": item['name'],
+                                        "customer": order_name,
+                                        "employee": employee_name,
+                                        "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                        "return_date": (datetime.now().date() + timedelta(days=7)).strftime("%Y-%m-%d"),
+                                        "notes": loan_notes,
+                                        "quantity": 1,
+                                        "status": "نشطة"
+                                    }
+                                    
+                                    inventory[item_id]['status'] = 'معار'
+                                
+                                save_loans(loans)
+                                save_inventory(inventory)
+                                
+                                st.success(f"✅ تم حفظ {len(selected_items)} معدة!")
+                                st.session_state['show_receipt'] = True
                     
                     with col2:
-                        quantity = st.number_input("🔢 الكمية", min_value=1, value=1, step=1)
-                        return_date = st.date_input("تاريخ الإرجاع المتوقع", 
-                                                value=datetime.now().date() + timedelta(days=7))
-                        loan_notes = st.text_area("ملاحظات الإعارة")
+                        if st.button("🖨️ طباعة", use_container_width=True):
+                            st.session_state['show_receipt'] = True
                     
-                    if st.button("✅ تأكيد السحب", use_container_width=True, type="primary"):
-                        if customer and employee:
-                            for i in range(int(quantity)):
-                                loan_id = f"LOAN-{len(loans)+1+i:05d}"
-                                loans[loan_id] = {
-                                    "item_id": item_id,
-                                    "item_name": inventory[item_id]['name'],
-                                    "customer": customer,
-                                    "employee": employee,
-                                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                    "return_date": return_date.strftime("%Y-%m-%d"),
-                                    "quantity": 1,
-                                    "notes": loan_notes,
-                                    "status": "نشطة"
-                                }
-                            save_loans(loans)
-                            
-                            inventory[item_id]['status'] = 'معار'
-                            save_inventory(inventory)
-                            
-                            st.success(f"✅ تم تسجيل {int(quantity)} إعارة(إعارات)!")
-                            st.rerun()
-                        else:
-                            st.error("❌ يرجى ملء جميع الحقول!")
+                    # طباعة الإيصال
+                    if st.session_state.get('show_receipt'):
+                        st.divider()
+                        st.markdown("### 🧾 إيصال السحب")
+                        
+                        receipt = f"""
+                        {'='*50}
+                        إيصال سحب معدات
+                        {'='*50}
+                        
+                        الأوردر: {order_name}
+                        الساحب: {employee_name}
+                        التاريخ: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+                        
+                        المعدات المسحوبة:
+                        {'-'*50}
+                        """
+                        
+                        for idx, (item_id, item) in enumerate(selected_items.items(), 1):
+                            receipt += f"\n{idx}. {item_id} - {item['name']}"
+                        
+                        receipt += f"""
+                        {'-'*50}
+                        الملاحظات: {loan_notes}
+                        {'='*50}
+                        """
+                        
+                        st.code(receipt)
+                        
+                        st.download_button(
+                            label="📥 تحميل الإيصال",
+                            data=receipt,
+                            file_name=f"receipt_{order_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                            mime="text/plain",
+                            use_container_width=True
+                        )
                 else:
                     st.info("⚠️ لا توجد معدات متوفرة للسحب")
             else:
@@ -707,23 +792,40 @@ else:
                 
                 if loan_id:
                     loan_data = active_loans[loan_id]
-                    st.info(f"📦 المعدة: **{loan_data['item_name']}** | 👤 العميل: **{loan_data['customer']}'**")
+                    st.info(f"📦 المعدة: **{loan_data['item_name']}** | 👤 العميل: **{loan_data['customer']}**")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        return_type = st.radio("نوع الإرجاع", ["🔄 إرجاع كامل", "📦 إرجاع جزئي"])
+                    
+                    with col2:
+                        if return_type == "📦 إرجاع جزئي":
+                            partial_quantity = st.number_input("عدد الوحدات المرجعة", min_value=1, value=1, step=1)
+                        else:
+                            partial_quantity = 1
                     
                     return_condition = st.selectbox("حالة المعدة عند الإرجاع", ["ممتازة", "جيدة", "بها أضرار", "غير صالحة"])
                     return_notes = st.text_area("ملاحظات الإرجاع")
                     
                     if st.button("✅ تأكيد الإرجاع", use_container_width=True, type="primary"):
                         item_id = loan_data['item_id']
-                        loans[loan_id]['status'] = 'مرجعة'
+                        
+                        if return_type == "🔄 إرجاع كامل":
+                            loans[loan_id]['status'] = 'مرجعة'
+                            inventory[item_id]['status'] = 'متوفر'
+                            st.success("✅ تم تسجيل الإرجاع الكامل!")
+                        else:
+                            loans[loan_id]['status'] = 'جزئية'
+                            # في الإرجاع الجزئي، المعدة تبقى معار
+                            st.success(f"✅ تم تسجيل إرجاع {int(partial_quantity)} وحدة!")
+                        
                         loans[loan_id]['return_condition'] = return_condition
                         loans[loan_id]['return_notes'] = return_notes
                         loans[loan_id]['actual_return_date'] = datetime.now().strftime("%Y-%m-%d")
                         save_loans(loans)
-                        
-                        inventory[item_id]['status'] = 'متوفر'
                         save_inventory(inventory)
                         
-                        st.success("✅ تم تسجيل الإرجاع بنجاح!")
                         st.rerun()
             else:
                 st.info("📭 لا توجد إعارات نشطة")
