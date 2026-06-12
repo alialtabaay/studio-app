@@ -276,7 +276,7 @@ else:
         with tab_add_manual:
             st.markdown("### ➕ إضافة معدة جديدة")
             
-            with st.form("add_inventory_form"):
+            with st.form("add_excel_inventory_form"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -456,7 +456,7 @@ else:
                     # عرض البيانات الحالية
                     current_data = inventory[selected_item]
                     
-                    with st.form("edit_inventory_form"):
+                    with st.form("edit_manual_inventory_form"):
                         col1, col2 = st.columns(2)
                         
                         with col1:
@@ -512,7 +512,7 @@ else:
         with tab_add_manual:
             st.markdown("### ➕ إضافة معدة جديدة")
             
-            with st.form("add_inventory_form"):
+            with st.form("add_manual_form"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
